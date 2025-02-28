@@ -2,7 +2,7 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name='twa',
-    version='0.0.7',
+    version='0.0.8',
     author='Jiaru Bai; Daniel Nurkowski',
     author_email='jb2197@cam.ac.uk; danieln@cmclinnovations.com',
     license='MIT',
@@ -25,6 +25,7 @@ setup(
         'python-dotenv',
         'yagmail',
         'Werkzeug',
+        'importlib_resources>=5.10',
     ],
     include_package_data=True,
     entry_points={
