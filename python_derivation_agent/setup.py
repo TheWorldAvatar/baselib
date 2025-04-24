@@ -13,7 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_namespace_packages(exclude=['tests','tests.*']),
     # Werkzeug version is fixed as its 3.0.0 version breaks flask 2.x https://werkzeug.palletsprojects.com/en/3.0.x/changes/#version-3-0-0
-    install_requires=['py4jps>=1.0.38', 'flask==2.1.0', 'gunicorn==20.0.4', 'Flask-APScheduler', 'rdflib', 'python-dotenv', 'yagmail', 'Werkzeug~=2.2.2'],
+    install_requires=['py4jps>=1.0.38', 'flask==2.1.0', 'gunicorn==22.0.0', 'Flask-APScheduler', 'rdflib', 'python-dotenv', 'yagmail', 'Werkzeug~=2.2.2'],
     extras_require={
         "dev": [
             "testcontainers>=3.4.2",
