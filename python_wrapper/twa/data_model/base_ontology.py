@@ -113,6 +113,8 @@ class KnowledgeGraph(BaseModel):
     @classmethod
     def clear_object_lookup(cls):
         """ This method is used to clear the object lookup dictionary in Python memory. """
+        if cls.class_lookup is None:
+            return
         for cls in cls.class_lookup.values():
             cls.clear_object_lookup()
 
@@ -767,6 +769,27 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
     def init_instance_iri(cls) -> str:
         return init_instance_iri(cls.rdfs_isDefinedBy.namespace_iri, cls.__name__)
 
+    def __new__(cls, **data):
+        # this is to support loading the nested JSON while not throwing error for already registered objects when traversed again
+        iri = data.get("instance_iri")
+        if iri and cls.object_lookup and iri in KnowledgeGraph.construct_object_lookup():
+            if type(KnowledgeGraph.get_object_from_lookup(iri)) == cls:
+                # if an instance with this IRI is already created, bail out
+                # this shortcircuits the __init__ method
+                # and avoids the creation of a new object
+                # TODO [future work] do we want to check if the content is the same?
+                # TODO [future work] what about when self.__class__.rdfs_isDefinedBy.is_dev_mode()?
+                return cls.object_lookup[iri]
+            else:
+                # if an instance with this IRI is already created, but it is not the same class
+                # we need to remove the old instance from the lookup table
+                # so that this supports the case of multiple inheritance
+                warnings.warn(f"An object with the same IRI {iri} has already been instantiated and registered with type {type(KnowledgeGraph.get_object_from_lookup(iri))}. Replacing its regiatration now with type {cls}.")
+                del type(KnowledgeGraph.get_object_from_lookup(iri)).object_lookup[iri]
+        # otherwise allocate a brand-new object
+        # this applies to the case of multiple inheritance as well
+        return super().__new__(cls)
+
     def __init__(self, **data):
         # handle the case when rdfs_comment and rdfs_label are provided as a non-set value
         if 'rdfs_comment' in data and not isinstance(data['rdfs_comment'], set):
@@ -799,31 +822,17 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
         Returns:
             None: It calls the super().model_post_init(__context) to finish the post init process
         """
+        # at this point, `self` is either brand-new or the reused object
+        # still need to register the object to the lookup table
         if not bool(self.instance_iri):
             self.instance_iri = self.__class__.init_instance_iri()
         # set new instance to the global look up table, so that we can avoid creating the same instance multiple times
-        self._register_object()
-        return super().model_post_init(__context)
-
-    def _register_object(self):
-        """
-        This function registers the object to the lookup dictionary of the class.
-        It should not be called by the user.
-
-        Raises:
-            ValueError: The object with the same IRI has already been registered
-        """
         if self.__class__.object_lookup is None:
             self.__class__.object_lookup = {}
-        if self.instance_iri in self.__class__.object_lookup:
-            if type(self.__class__.object_lookup[self.instance_iri]) == type(self):
-                # TODO and not self.__class__.rdfs_isDefinedBy.is_dev_mode()?
-                raise ValueError(
-                    f"An object with the same IRI {self.instance_iri} has already been instantiated and registered with the same type {type(self)}.")
-            else:
-                warnings.warn(f"An object with the same IRI {self.instance_iri} has already been instantiated and registered with type {type(self.__class__.object_lookup[self.instance_iri])}. Replacing its regiatration now with type {type(self)}.")
-                del self.__class__.object_lookup[self.instance_iri]
-        self.__class__.object_lookup[self.instance_iri] = self
+        # register the object to the lookup dictionary of the class
+        if self.instance_iri not in self.__class__.object_lookup:
+            self.__class__.object_lookup[self.instance_iri] = self
+        return super().model_post_init(__context)
 
     @classmethod
     def retrieve_subclass(cls, iri: str) -> Type[BaseClass]:
@@ -1213,7 +1222,7 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
             return
         traversed_iris.add(self.instance_iri)
         for f, cached in self._latest_cache.items():
-            f_tp = get_args(self.model_fields[f].annotation)[0] if type(self.model_fields[f].annotation) == _UnionGenericAlias else self.model_fields[f].annotation
+            f_tp = get_args(self.__class__.model_fields[f].annotation)[0] if type(self.__class__.model_fields[f].annotation) == _UnionGenericAlias else self.__class__.model_fields[f].annotation
             if ObjectProperty._is_inherited(f_tp):
                 _o = getattr(self, f) if getattr(self, f) is not None else set()
                 disconnected_object_properties = cached - _o
@@ -1223,7 +1232,7 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
                         obj._create_cache(recursive_depth, traversed_iris)
         # secondly (and finally), create cache for all currently connected properties
         recursive_depth = max(recursive_depth - 1, 0) if recursive_depth > -1 else max(recursive_depth - 1, -1)
-        for f, field_info in self.model_fields.items():
+        for f, field_info in self.__class__.model_fields.items():
             tp = get_args(field_info.annotation)[0] if type(field_info.annotation) == _UnionGenericAlias else field_info.annotation
             if DatatypeProperty._is_inherited(tp):
                 self._latest_cache[f] = copy.deepcopy(getattr(self, f))
@@ -1250,7 +1259,7 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
 
     def revert_local_changes(self):
         """ This function reverts the local changes made to the python object to cached values. """
-        for f, field_info in self.model_fields.items():
+        for f, field_info in self.__class__.model_fields.items():
             if BaseProperty._is_inherited(field_info.annotation):
                 setattr(self, f, copy.deepcopy(self._latest_cache.get(f, field_info.annotation(set()))))
             else:
@@ -1276,9 +1285,15 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
             # if fetched != cached --> remote changed, now should check if local has changed:
             #     if local == cached --> no local changes, can update both cache and local values with fetched value
             #     if local != cached --> there are local changed, now should check if the local changes are the same as remote (unlikely tho)
-            #         if local != fetched --> now check the flag force_overwrite_local
-            #             if True --> update local and cache values with fetched value
-            #             if False --> raise exception
+            #         if local != fetched --> the actions to take depend on what is the nature of the differences in changes:
+            #             here the check is for the intent of the changes, if either side wants to delete an object but the other side wants to keep it
+            #             then it means that the same object is modified by both local and remote but in different ways
+            #             additions on the both sides are not a problem
+            #                 --> check the flag force_overwrite_local
+            #                     if True --> update local and cache values with fetched value
+            #                     if False --> raise exception
+            #             else, it means that the local changes are not in conflict with remote changes
+            #                 --> update local values with fetched value (take the union of local and remote changes)
             #         if local == fetched --> (which is really unlikely) update cache only
             # in practice, the above logic can be simplified:
             if fetched_value != cached_value:
@@ -1287,20 +1302,43 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
                     setattr(self, p_dct['field'], copy.deepcopy(fetched_value))
                 else:
                     # there are both local and remote changes, now compare these two
-                    if local_value != fetched_value and not force_overwrite_local:
-                        raise Exception(f"""The remote changes in knowledge graph conflicts with local changes
-                            for {self.instance_iri} {p_iri}:
-                            Objects appear in the remote but not in the local: {fetched_value}
-                            Triples appear in the local but not the remote: {local_value}
-                            Triples cached in the local: {cached_value}""")
-                    else:
-                        # update the local changes as force_overwrite_local is set to True
-                        setattr(self, p_dct['field'], copy.deepcopy(fetched_value))
-                        warnings.warn(f"""The remote changes in knowledge graph conflicts with local changes
-                            for {self.instance_iri} {p_iri} but is now overwritten by the remote changes:
-                            Objects appear in the remote but not in the local: {fetched_value}
-                            Triples appear in the local but not the remote: {local_value}
-                            Triples cached in the local: {cached_value}""")
+                    # TODO [future work] the cardinality check should be done as part of native Pydantic validation for customised sets
+                    if local_value != fetched_value:
+                        local_removed = cached_value - local_value
+                        local_kept = local_value.intersection(cached_value)
+                        fetched_removed = cached_value - fetched_value
+                        fetched_kept = fetched_value.intersection(cached_value)
+                        # check if the local changes are in conflict with remote changes
+                        if bool(local_kept & fetched_removed) or bool(local_removed & fetched_kept):
+                            # this means that the same object is "modified" by both local and remote but in different ways (from the intent of the changes)
+                            # e.g. local wants to keep some objects that are removed in remote
+                            # or local has removed some objects that are intended to be kept by remote changes
+                            # NOTE that this is different from the case where only local deletes some objects while the remote is the same as cached (i.e. no remote changes)
+                            # check the flag force_overwrite_local
+                            if not force_overwrite_local:
+                                raise Exception(f"""The remote changes in knowledge graph conflicts with local changes
+                                    for {self.instance_iri} {p_iri}:
+                                    Objects appear in the remote: {fetched_value}
+                                    Objects appear in the local: {local_value}
+                                    Objects removed in the remote: {fetched_removed}
+                                    Objects removed in the local: {local_removed}
+                                    Objects intended to be kept in the remote: {fetched_kept}
+                                    Objects intended to be kept in the local: {local_kept}
+                                    Objects cached in the local: {cached_value}""")
+                            else:
+                                # update the local changes as force_overwrite_local is set to True
+                                # although the local changes are in conflict with remote changes
+                                setattr(self, p_dct['field'], copy.deepcopy(fetched_value))
+                                warnings.warn(f"""The remote changes in knowledge graph conflicts with local changes
+                                    for {self.instance_iri} {p_iri} but is now overwritten by the remote changes:
+                                    Objects appear in the remote: {fetched_value}
+                                    Objects appeared in the local BUT ARE NOW OVERWRITTEN BY THE REMOTE VALUES: {local_value}
+                                    Objects cached in the local BUT ARE NOW OVERWRITTEN BY THE REMOTE VALUES: {cached_value}""")
+                        else:
+                            # this means that the local changes are not in conflict with remote changes
+                            # we can take the union of local and remote changes
+                            # and update the cached values with fetched value (this is delayed to the end)
+                            setattr(self, p_dct['field'], local_value.union(copy.deepcopy(fetched_value)))
             # the cache can be updated regardless as long as there are no exceptions
             self._latest_cache[p_dct['field']] = copy.deepcopy(fetched_value)
 
@@ -1416,7 +1454,7 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
         if self.instance_iri in traversed_iris:
             return g_to_remove, g_to_add
         traversed_iris.add(self.instance_iri)
-        for f, field_info in self.model_fields.items():
+        for f, field_info in self.__class__.model_fields.items():
             # enable handling Optional[]
             tp: ObjectProperty | DatatypeProperty = get_args(field_info.annotation)[0] if type(field_info.annotation) == _UnionGenericAlias else field_info.annotation
             if BaseProperty._is_inherited(tp):
@@ -1473,6 +1511,9 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
 
         if not self._exist_in_kg:
             g_to_add.add((URIRef(self.instance_iri), RDF.type, URIRef(self.rdf_type)))
+            # also add rdf_type for its parent classes
+            for i in range(1, self.__class__.__mro__.index(BaseClass)):
+                g_to_add.add((URIRef(self.instance_iri), RDF.type, URIRef(self.__class__.__mro__[i].rdf_type)))
             # assume that the instance is in KG once the triples are added
             # TODO [future] or need to a better way to represent this?
             self._exist_in_kg = True
@@ -1492,7 +1533,7 @@ class BaseClass(BaseModel, validate_assignment=True, validate_default=True):
         if g is None:
             g = Graph()
         g.add((URIRef(self.instance_iri), RDF.type, URIRef(self.rdf_type)))
-        for f, field_info in self.model_fields.items():
+        for f, field_info in self.__class__.model_fields.items():
             tp = get_args(field_info.annotation)[0] if type(field_info.annotation) == _UnionGenericAlias else field_info.annotation
             if ObjectProperty._is_inherited(tp):
                 tp: ObjectProperty

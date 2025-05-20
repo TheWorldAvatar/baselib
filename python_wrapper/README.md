@@ -181,3 +181,20 @@ The documentation for `twa` can be found [here](https://cambridge-cares.github.i
 
 ## Issues? Feature requests?
 Submit an [issue](https://github.com/cambridge-cares/TheWorldAvatar/issues) with a label `python-wrapper`.
+
+## Author
+- Jiaru Bai (jb2197@cantab.ac.uk)
+- Daniel Nurkowski
+
+## Citation
+
+If you found this tool useful, please consider citing the following preprint:
+
+```bibtex
+@article{bai2025twa,
+  title={{twa: The World Avatar Python package for dynamic knowledge graphs and its application in reticular chemistry}},
+  author={Bai, Jiaru and Rihm, Simon D and Kondinski, Aleksandar and Saluz, Fabio and Deng, Xinhong and Brownbridge, George and Mosbach, Sebastian and Akroyd, Jethro and Kraft, Markus},
+  year={2025},
+  note={Preprint at \url{https://como.ceb.cam.ac.uk/preprints/335/}}
+}
+```
