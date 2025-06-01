@@ -2,7 +2,7 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name='twa',
-    version='0.0.7',
+    version='0.0.8-15-SNAPSHOT',
     author='Jiaru Bai; Daniel Nurkowski',
     author_email='jb2197@cam.ac.uk; danieln@cmclinnovations.com',
     license='MIT',
