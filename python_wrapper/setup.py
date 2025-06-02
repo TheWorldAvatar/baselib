@@ -20,7 +20,7 @@ setup(
         'rdflib==7.0.0',
         'requests',
         'flask',
-        'gunicorn==20.0.4',
+        'gunicorn==23.0.0',
         'Flask-APScheduler',
         'python-dotenv',
         'yagmail',
