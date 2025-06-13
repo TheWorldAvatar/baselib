@@ -49,6 +49,7 @@ public class TBoxGeneration implements ITBoxGeneration {
 	public static final String VERSION_INFO = "http://www.w3.org/2002/07/owl#versionInfo";
 	public static final String RDFS_COMMENT = "http://www.w3.org/2000/01/rdf-schema#comment";
 	public static final String OWL_IMPORTS = "http://www.w3.org/2002/07/owl#imports";
+	public static final String DCT_LICENSE = "http://purl.org/dc/terms/license";
 	public static TBoxConfiguration tBoxConfig;
 	public static ApplicationContext applicationContext;
 
@@ -768,6 +769,8 @@ public class TBoxGeneration implements ITBoxGeneration {
 				TBoxManagement.tBoxConfig.settBoxComment(target);
 			} else if (relation.trim().equals(OWL_IMPORTS) && target != null && !target.isEmpty()) {
 				TBoxManagement.tBoxConfig.settBoxImport(target);
+			} else if (relation.trim().equals(DCT_LICENSE) && target != null && !target.isEmpty()) {
+				TBoxManagement.tBoxConfig.settBoxLicence(target);
 			}
 		}
 	}

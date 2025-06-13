@@ -1319,6 +1319,22 @@ public class TBoxManagement extends TBoxGeneration implements ITBoxManagement{
 		representDateOfGeneration();
 		representVersion();
 		representCommitHash();
+		representLicence();
+	}
+	
+	/**
+	 * Represents the licence of the ontology.
+	 * 
+	 * @throws JPSRuntimeException
+	 */
+	private void representLicence() throws JPSRuntimeException{
+		String licence = tBoxConfig.gettBoxLicence();
+		if (licence != null && !licence.isEmpty()) {
+			OWLLiteral licenceValue = getOWLLiteralWithLanguage(licence);
+			OWLAnnotationProperty licenceProperty = dataFactory.getOWLAnnotationProperty("http://purl.org/dc/terms/license");
+			OWLAnnotation licencePropertyAttributeWithValue = dataFactory.getOWLAnnotation(licenceProperty, licenceValue);
+			manager.applyChange(new AddOntologyAnnotation(ontology, licencePropertyAttributeWithValue));
+		}
 	}
 	
 	/**
