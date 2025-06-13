@@ -1331,7 +1331,7 @@ public class TBoxManagement extends TBoxGeneration implements ITBoxManagement{
 		String licence = tBoxConfig.gettBoxLicence();
 		if (licence != null && !licence.isEmpty()) {
 			OWLLiteral licenceValue = getOWLLiteralWithLanguage(licence);
-			OWLAnnotationProperty licenceProperty = dataFactory.getOWLAnnotationProperty("http://purl.org/dc/terms/license");
+			OWLAnnotationProperty licenceProperty = dataFactory.getOWLAnnotationProperty(DCT_LICENSE);
 			OWLAnnotation licencePropertyAttributeWithValue = dataFactory.getOWLAnnotation(licenceProperty, licenceValue);
 			manager.applyChange(new AddOntologyAnnotation(ontology, licencePropertyAttributeWithValue));
 		}
