@@ -1,2 +1,8 @@
-testcontainers
-pytest
+testcontainers>=3.4.2
+pytest==6.2.3
+docker==6.1.3
+pytest-rerunfailures==10.2
+pytest-docker-compose==3.2.1
+requests==2.31.0
+requests-unixsocket==0.3.0
+
