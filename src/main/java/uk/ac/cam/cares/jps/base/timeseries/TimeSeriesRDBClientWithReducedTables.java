@@ -518,6 +518,17 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
     }
 
     /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param conn    connection to the RDB
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
+        // TODO: placeholder only
+        return new HashMap<>();
+    }
+
+    /**
      * returns a TimeSeries object with the latest value of the given IRI
      * 
      * @param dataIRI
