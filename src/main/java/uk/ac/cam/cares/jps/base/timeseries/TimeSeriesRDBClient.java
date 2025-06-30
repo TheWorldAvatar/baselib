@@ -376,46 +376,7 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
             // (throws Exception if not)
             checkDataIsInSameTable(dataIRI, context);
 
-            // Retrieve table corresponding to the time series connected to the data IRIs
-            Table<?> table = getTimeseriesTable(dataIRI.get(0), context);
-
-            // Create map between data IRI and the corresponding column field in the table
-            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-            for (String data : dataIRI) {
-                String columnName = getColumnName(data, context);
-                Field<Object> field = DSL.field(DSL.name(columnName));
-                dataColumnFields.put(data, field);
-            }
-
-            // Retrieve list of column fields (including fixed time column)
-            List<Field<?>> columnList = new ArrayList<>();
-            columnList.add(timeColumn);
-            for (String data : dataIRI) {
-                columnList.add(dataColumnFields.get(data));
-            }
-
-            // Potentially update bounds (if no bounds were provided)
-            if (lowerBound == null) {
-                lowerBound = context.select(min(timeColumn)).from(table).fetch(min(timeColumn)).get(0);
-            }
-            if (upperBound == null) {
-                upperBound = context.select(max(timeColumn)).from(table).fetch(max(timeColumn)).get(0);
-            }
-
-            // Perform query
-            Result<? extends Record> queryResult = context.select(columnList).from(table)
-                    .where(timeColumn.between(lowerBound, upperBound))
-                    .orderBy(timeColumn.asc()).fetch();
-
-            // Collect results and return a TimeSeries object
-            List<T> timeValues = queryResult.getValues(timeColumn);
-            List<List<?>> dataValues = new ArrayList<>();
-            for (String data : dataIRI) {
-                List<?> column = queryResult.getValues(dataColumnFields.get(data));
-                dataValues.add(column);
-            }
-
-            return new TimeSeries<>(timeValues, dataIRI, dataValues);
+            return queryTimeSeriesWithinBounds(dataIRI, lowerBound, upperBound, context);
 
         } catch (JPSRuntimeException e) {
             // Re-throw JPSRuntimeExceptions
@@ -427,6 +388,51 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
             throw new JPSRuntimeException(exceptionPrefix + SQL_ERROR, e);
         }
 
+    }
+
+    // internal parts of querying for time series data
+
+    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound, DSLContext context) {
+        // Retrieve table corresponding to the time series connected to the data IRIs
+        Table<?> table = getTimeseriesTable(dataIRI.get(0), context);
+
+        // Create map between data IRI and the corresponding column field in the table
+        Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+        for (String data : dataIRI) {
+            String columnName = getColumnName(data, context);
+            Field<Object> field = DSL.field(DSL.name(columnName));
+            dataColumnFields.put(data, field);
+        }
+
+        // Retrieve list of column fields (including fixed time column)
+        List<Field<?>> columnList = new ArrayList<>();
+        columnList.add(timeColumn);
+        for (String data : dataIRI) {
+            columnList.add(dataColumnFields.get(data));
+        }
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(table).fetch(min(timeColumn)).get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(table).fetch(max(timeColumn)).get(0);
+        }
+
+        // Perform query
+        Result<? extends Record> queryResult = context.select(columnList).from(table)
+                .where(timeColumn.between(lowerBound, upperBound))
+                .orderBy(timeColumn.asc()).fetch();
+
+        // Collect results and return a TimeSeries object
+        List<T> timeValues = queryResult.getValues(timeColumn);
+        List<List<?>> dataValues = new ArrayList<>();
+        for (String data : dataIRI) {
+            List<?> column = queryResult.getValues(dataColumnFields.get(data));
+            dataValues.add(column);
+        }
+
+        return new TimeSeries<>(timeValues, dataIRI, dataValues);
     }
 
     /**
@@ -467,42 +473,10 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
 
             tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
                 // TODO: this should be done in parallel
-                Table<?> table = getTimeseriesTable(dataIris.get(0), context);
+                // TODO: allow bounds to be defined by calling code (currently always null)
+                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context); 
 
-                // Create map between data IRI and the corresponding column field in the table
-                Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-                for (String data : dataIris) {
-                    String columnName = getColumnName(data, context);
-                    Field<Object> field = DSL.field(DSL.name(columnName));
-                    dataColumnFields.put(data, field);
-                }
-
-                // Retrieve list of column fields (including fixed time column)
-                List<Field<?>> columnList = new ArrayList<>();
-                columnList.add(timeColumn);
-                for (String data : dataIris) {
-                    columnList.add(dataColumnFields.get(data));
-                }
-
-                // Update bounds
-                // TODO: allow bounds to be defined by calling code
-                T lowerBound = context.select(min(timeColumn)).from(table).fetch(min(timeColumn)).get(0);
-                T upperBound = context.select(max(timeColumn)).from(table).fetch(max(timeColumn)).get(0);
-
-                // Perform query
-                Result<? extends Record> queryResult = context.select(columnList).from(table)
-                        .where(timeColumn.between(lowerBound, upperBound))
-                        .orderBy(timeColumn.asc()).fetch();
-
-                // Collect results and return a TimeSeries object
-                List<T> timeValues = queryResult.getValues(timeColumn);
-                List<List<?>> dataValues = new ArrayList<>();
-                for (String data : dataIris) {
-                    List<?> column = queryResult.getValues(dataColumnFields.get(data));
-                    dataValues.add(column);
-                }
-
-                timeSeriesDataMap.put(tsIri, new TimeSeries<>(timeValues, dataIris, dataValues));
+                timeSeriesDataMap.put(tsIri, tsData);
 
             });
 
