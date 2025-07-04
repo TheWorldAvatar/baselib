@@ -633,19 +633,20 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
 
         Map<String, Map<String, Field<Object>>> tsDataColumnFields = new HashMap<>();
 
+        List<String> allDataIris = tsIriToDataIriListMap.values().stream().flatMap(List::stream).collect(Collectors.toList());
+        Map<String, String> dataColumnNames = bulkGetColumnName(allDataIris, context);
+
+
         tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
 
             // Create map between data IRI and the corresponding column field in the table
             Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-            Map<String, String> dataColumnNames = bulkGetColumnName(dataIris, context);
-            for (Map.Entry<String, String> entry : dataColumnNames.entrySet()) {
-                String dataIri = entry.getKey(); // This is the common key
-                String columnName = entry.getValue(); // This is the string for the column name
+            for (String dataIri:dataIris) {
+                String columnName = dataColumnNames.get(dataIri);
                 Field<Object> field = DSL.field(DSL.name(columnName));
                 dataColumnFields.put(dataIri, field);
                 uniqueFieldsSet.add(field); // HashSet naturally handles uniqueness
             }
-
             tsDataColumnFields.put(tsIri, dataColumnFields);
 
         });
