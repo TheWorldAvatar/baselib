@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +28,7 @@ import org.jooq.InsertValuesStep4;
 import org.jooq.InsertValuesStepN;
 import org.jooq.Record;
 import org.jooq.Record2;
+import org.jooq.Record3;
 import org.jooq.Result;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
@@ -529,6 +532,8 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
      */
     public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
 
+        long startNanoTime = System.nanoTime();
+
         Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
 
         // Initialise connection and set jOOQ DSL context
@@ -543,17 +548,32 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
                         exceptionPrefix + "Central RDB lookup table has not been initialised yet");
             }
 
+            long durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
+            System.out.println("Check central table exist took " + durationNano + " ns");
+            startNanoTime = System.nanoTime();
+
             // Get a map of time series to data series
 
-            Map<String, List<String>> tsIriToDataIriListMap = getTimeseriesOfDataseries(dataIRI, context);
+            List<Map<String, List<String>>> listMap = getTimeseriesOfDataseries(dataIRI, context);
 
-            tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
-                // TODO: this should be done in parallel
-                // TODO: allow bounds to be defined by calling code (currently always null)
-                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context); 
+            Map<String, List<String>>  tsTableToIriListMap = listMap.get(0);
+            Map<String, List<String>>  tsIriToDataIriListMap = listMap.get(1);
 
-                timeSeriesDataMap.put(tsIri, tsData);
+            durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
+            System.out.println("Get time series map took " + durationNano + " ns");
 
+            tsTableToIriListMap.forEach((tableName, tsIriList) -> {
+
+                Map<String, List<String>> currentTableTsIriToDataIriSubMap = tsIriList.stream()
+                .filter(tsIri -> tsIriToDataIriListMap.containsKey(tsIri)) // Ensure the tsIri exists in the main data map
+                .collect(Collectors.toMap(
+                    tsIri -> tsIri,                        // Key for the sub-map is the tsIri
+                    tsIri -> tsIriToDataIriListMap.get(tsIri) // Value for the sub-map is its List<String> dataIris
+                ));
+
+                Map<String, TimeSeries<T>> currentTimeSeriesDataMap = bulkQueryTimeSeriesWithinBounds(tableName, currentTableTsIriToDataIriSubMap, null, null, context);
+                timeSeriesDataMap.putAll(currentTimeSeriesDataMap);
+            
             });
 
             return timeSeriesDataMap;
@@ -577,19 +597,124 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
      * @param dataIRI list of data IRIs provided as string
      * @param context
      */
-    private Map<String, List<String>> getTimeseriesOfDataseries(List<String> dataIRI, DSLContext context) {
+    public List<Map<String, List<String>>> getTimeseriesOfDataseries(List<String> dataIRI, DSLContext context) {
 
         Table<?> table = getDSLTable(DB_TABLE_NAME);
 
-        List<Condition> conditions = dataIRI.stream().map(DATA_IRI_COLUMN::eq).collect(Collectors.toList());
+        Condition combinedCondition = DATA_IRI_COLUMN.in(dataIRI);
 
-        Condition combinedCondition = DSL.or(conditions);
-
-        Result<Record2<String, String>> queryResult = context.select(TS_IRI_COLUMN, DATA_IRI_COLUMN).from(table)
+        Result<Record3<String, String, String>> queryResult = context.select(TABLENAME_COLUMN, TS_IRI_COLUMN, DATA_IRI_COLUMN).from(table)
                 .where(combinedCondition).fetch();
+        
+        //TODO: JOOQ 3.15 or above would be able to produce nested maps with intoGroups
+        Map<String, List<String>> tableToTsIri = queryResult.intoGroups(TABLENAME_COLUMN, TS_IRI_COLUMN);
+        Map<String, List<String>> TsIriToDataIri = queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
 
-        return queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
+        //TODO: improve this for clarity. Maybe make this its own class
+        List<Map<String, List<String>>> listOfMaps = new ArrayList<>();
+        listOfMaps.add(tableToTsIri);
+        listOfMaps.add(TsIriToDataIri);
 
+        return listOfMaps;
+
+    }
+
+    // Can return multiple time series, providing that they are all in the same table
+
+    private Map<String, TimeSeries<T>> bulkQueryTimeSeriesWithinBounds(String tsTableName, Map<String, List<String>> tsIriToDataIriListMap,
+        T lowerBound, T upperBound, DSLContext context) {
+
+        long startNanoTime = System.nanoTime();
+
+        // Initialize a Set to collect unique Field<?> objects
+        Set<Field<?>> uniqueFieldsSet = new HashSet<>();
+        uniqueFieldsSet.add(timeColumn);
+        uniqueFieldsSet.add(TS_IRI_COLUMN);
+
+        Map<String, Map<String, Field<Object>>> tsDataColumnFields = new HashMap<>();
+
+        tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
+
+            // Create map between data IRI and the corresponding column field in the table
+            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+            Map<String, String> dataColumnNames = bulkGetColumnName(dataIris, context);
+            for (Map.Entry<String, String> entry : dataColumnNames.entrySet()) {
+                String dataIri = entry.getKey(); // This is the common key
+                String columnName = entry.getValue(); // This is the string for the column name
+                Field<Object> field = DSL.field(DSL.name(columnName));
+                dataColumnFields.put(dataIri, field);
+                uniqueFieldsSet.add(field); // HashSet naturally handles uniqueness
+            }
+
+            tsDataColumnFields.put(tsIri, dataColumnFields);
+
+        });
+
+        
+        long durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
+        System.out.println("Get data column took " + durationNano + " ns");
+        startNanoTime = System.nanoTime();
+
+        List<Field<?>> columnList = new ArrayList<>(uniqueFieldsSet);
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
+                    .get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
+                    .get(0);
+        }
+
+        
+        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
+        System.out.println("Time bound took " + durationNano + " ns");
+        startNanoTime = System.nanoTime();
+
+
+        // Perform query
+        
+        Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
+                .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.in(tsIriToDataIriListMap.keySet())))
+                .orderBy(timeColumn.asc()).fetch();
+        
+        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
+        System.out.println("Actual query took " + durationNano + " ns");
+        startNanoTime = System.nanoTime();
+
+        // Split up results based on time series IRI
+
+        // This is a workaround if the compiler is truly confused; it should not be necessary normally.
+        Map<String, Result<? extends Record>> recordsByTsIri = (Map<String, Result<? extends Record>>) (Object) queryResult.intoGroups(TS_IRI_COLUMN);
+
+        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
+        System.out.println("Grouping result took " + durationNano + " ns");
+        startNanoTime = System.nanoTime();
+
+        Map<String, TimeSeries<T>> tsDataMap = new HashMap<>();
+
+        recordsByTsIri.forEach((tsIri, tsRecords) -> {
+
+            // Collect results and return a map of TimeSeries object
+            List<T> timeValues = tsRecords.getValues(timeColumn);
+            List<String> dataIris = tsIriToDataIriListMap.get(tsIri);
+            List<List<?>> dataValues = new ArrayList<>();
+            Map<String, Field<Object>> dataColumnFields = tsDataColumnFields.get(tsIri);
+
+            for (String data : tsIriToDataIriListMap.get(tsIri)) {
+                List<?> column = tsRecords.getValues(dataColumnFields.get(data));
+                dataValues.add(column);
+            }
+
+            tsDataMap.put(tsIri, new TimeSeries<>(timeValues, dataIris, dataValues));
+
+        });
+
+        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
+        System.out.println("Populating time series took " + durationNano + " ns");
+
+        return tsDataMap;
     }
 
     /**
