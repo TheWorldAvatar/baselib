@@ -450,49 +450,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             // (throws Exception if not)
             checkDataIsInSameTable(dataIRI, context);
 
-            // Retrieve table corresponding to the time series connected to the data IRIs
-            String tsIri = getTimeSeriesIRI(dataIRI.get(0), context);
-            String tsTableName = getTimeSeriesTableName(dataIRI.get(0), context);
-
-            // Create map between data IRI and the corresponding column field in the table
-            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-            for (String data : dataIRI) {
-                String columnName = getColumnName(data, context);
-                Field<Object> field = DSL.field(DSL.name(columnName));
-                dataColumnFields.put(data, field);
-            }
-
-            // Retrieve list of column fields (including fixed time column)
-            List<Field<?>> columnList = new ArrayList<>();
-            columnList.add(timeColumn);
-            for (String data : dataIRI) {
-                columnList.add(dataColumnFields.get(data));
-            }
-
-            // Potentially update bounds (if no bounds were provided)
-            if (lowerBound == null) {
-                lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
-                        .get(0);
-            }
-            if (upperBound == null) {
-                upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
-                        .get(0);
-            }
-
-            // Perform query
-            Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
-                    .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.eq(tsIri)))
-                    .orderBy(timeColumn.asc()).fetch();
-
-            // Collect results and return a TimeSeries object
-            List<T> timeValues = queryResult.getValues(timeColumn);
-            List<List<?>> dataValues = new ArrayList<>();
-            for (String data : dataIRI) {
-                List<?> column = queryResult.getValues(dataColumnFields.get(data));
-                dataValues.add(column);
-            }
-
-            return new TimeSeries<>(timeValues, dataIRI, dataValues);
+            return queryTimeSeriesWithinBounds(dataIRI, lowerBound, upperBound, context);
 
         } catch (JPSRuntimeException e) {
             // Re-throw JPSRuntimeExceptions
@@ -517,6 +475,52 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         return getTimeSeriesWithinBounds(dataIRI, null, null, conn);
     }
 
+    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound, DSLContext context) {
+        // Retrieve table corresponding to the time series connected to the data IRIs
+        String tsIri = getTimeSeriesIRI(dataIRI.get(0), context);
+        String tsTableName = getTimeSeriesTableName(dataIRI.get(0), context);
+
+        // Create map between data IRI and the corresponding column field in the table
+        Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+        for (String data : dataIRI) {
+            String columnName = getColumnName(data, context);
+            Field<Object> field = DSL.field(DSL.name(columnName));
+            dataColumnFields.put(data, field);
+        }
+
+        // Retrieve list of column fields (including fixed time column)
+        List<Field<?>> columnList = new ArrayList<>();
+        columnList.add(timeColumn);
+        for (String data : dataIRI) {
+            columnList.add(dataColumnFields.get(data));
+        }
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
+                    .get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
+                    .get(0);
+        }
+
+        // Perform query
+        Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
+                .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.eq(tsIri)))
+                .orderBy(timeColumn.asc()).fetch();
+
+        // Collect results and return a TimeSeries object
+        List<T> timeValues = queryResult.getValues(timeColumn);
+        List<List<?>> dataValues = new ArrayList<>();
+        for (String data : dataIRI) {
+            List<?> column = queryResult.getValues(dataColumnFields.get(data));
+            dataValues.add(column);
+        }
+
+        return new TimeSeries<>(timeValues, dataIRI, dataValues);
+    }
+
     /**
      * Retrieve multiple time series from RDB
      * 
@@ -524,8 +528,68 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
      * @param conn    connection to the RDB
      */
     public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
-        // TODO: placeholder only
-        return new HashMap<>();
+
+        Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
+
+        // Initialise connection and set jOOQ DSL context
+        DSLContext context = DSL.using(conn, DIALECT);
+
+        // All database interactions in try-block to ensure closure of connection
+        try {
+
+            // Check if central database lookup table exists
+            if (!checkCentralTableExists(conn)) {
+                throw new JPSRuntimeException(
+                        exceptionPrefix + "Central RDB lookup table has not been initialised yet");
+            }
+
+            // Get a map of time series to data series
+
+            Map<String, List<String>> tsIriToDataIriListMap = getTimeseriesOfDataseries(dataIRI, context);
+
+            tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
+                // TODO: this should be done in parallel
+                // TODO: allow bounds to be defined by calling code (currently always null)
+                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context); 
+
+                timeSeriesDataMap.put(tsIri, tsData);
+
+            });
+
+            return timeSeriesDataMap;
+
+        } catch (JPSRuntimeException e) {
+            // Re-throw JPSRuntimeExceptions
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+            // Throw all exceptions incurred by jooq (i.e. by SQL interactions with
+            // database) as JPSRuntimeException with respective message
+            throw new JPSRuntimeException(exceptionPrefix + SQL_ERROR, e);
+        }
+
+    }
+
+    /**
+     * Get time series IRI of all dataIRIs
+     * Requires existing RDB connection;
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param context
+     */
+    private Map<String, List<String>> getTimeseriesOfDataseries(List<String> dataIRI, DSLContext context) {
+
+        Table<?> table = getDSLTable(DB_TABLE_NAME);
+
+        List<Condition> conditions = dataIRI.stream().map(DATA_IRI_COLUMN::eq).collect(Collectors.toList());
+
+        Condition combinedCondition = DSL.or(conditions);
+
+        Result<Record2<String, String>> queryResult = context.select(TS_IRI_COLUMN, DATA_IRI_COLUMN).from(table)
+                .where(combinedCondition).fetch();
+
+        return queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
+
     }
 
     /**
