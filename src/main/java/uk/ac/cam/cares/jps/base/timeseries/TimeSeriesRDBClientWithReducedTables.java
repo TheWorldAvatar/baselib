@@ -610,9 +610,17 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         Map<String, List<String>> tableToTsIri = queryResult.intoGroups(TABLENAME_COLUMN, TS_IRI_COLUMN);
         Map<String, List<String>> TsIriToDataIri = queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
 
+        // Post-process to ensure uniqueness per table
+        Map<String, List<String>> tableToTsIriDeduped = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : tableToTsIri.entrySet()) {
+            Set<String> uniqueTsIris = new HashSet<>(entry.getValue());
+            tableToTsIriDeduped.put(entry.getKey(), new ArrayList<>(uniqueTsIris));
+        }
+
+
         //TODO: improve this for clarity. Maybe make this its own class
         List<Map<String, List<String>>> listOfMaps = new ArrayList<>();
-        listOfMaps.add(tableToTsIri);
+        listOfMaps.add(tableToTsIriDeduped);
         listOfMaps.add(TsIriToDataIri);
 
         return listOfMaps;
