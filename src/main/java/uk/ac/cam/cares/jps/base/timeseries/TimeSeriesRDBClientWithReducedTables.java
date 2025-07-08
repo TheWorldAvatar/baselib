@@ -533,8 +533,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
      */
     public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
 
-        long startNanoTime = System.nanoTime();
-
         Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
 
         // Initialise connection and set jOOQ DSL context
@@ -549,10 +547,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
                         exceptionPrefix + "Central RDB lookup table has not been initialised yet");
             }
 
-            long durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
-            System.out.println("Check central table exist took " + durationNano + " ns");
-            startNanoTime = System.nanoTime();
-
             // Get a map of time series to data series
 
             List<Map<?, ?>> listMap = getTimeseriesOfDataseries(dataIRI, context);
@@ -561,9 +555,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             Map<String, List<String>> tsTableToIriListMap = (Map<String, List<String>>) listMap.get(0);
             Map<String, List<String>> tsIriToDataIriListMap = (Map<String, List<String>>) listMap.get(1);
             Map<String, String> dataIRIToColumnName = (Map<String, String>) listMap.get(2);
-
-            durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
-            System.out.println("Get time series map took " + durationNano + " ns");
 
             tsTableToIriListMap.forEach((tableName, tsIriList) -> {
 
@@ -654,8 +645,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
     private Map<String, TimeSeries<T>> bulkQueryTimeSeriesWithinBounds(String tsTableName, Map<String, List<String>> tsIriToDataIriListMap,
         Map<String, String> dataColumnNames, T lowerBound, T upperBound, DSLContext context) {
 
-        long startNanoTime = System.nanoTime();
-
         // Initialize a Set to collect unique Field<?> objects
         Set<Field<?>> uniqueFieldsSet = new HashSet<>();
         uniqueFieldsSet.add(timeColumn);
@@ -677,11 +666,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
 
         });
 
-        
-        long durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
-        System.out.println("Get data column took " + durationNano + " ns");
-        startNanoTime = System.nanoTime();
-
         List<Field<?>> columnList = new ArrayList<>(uniqueFieldsSet);
 
         // Potentially update bounds (if no bounds were provided)
@@ -694,30 +678,16 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
                     .get(0);
         }
 
-        
-        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
-        System.out.println("Time bound took " + durationNano + " ns");
-        startNanoTime = System.nanoTime();
-
-
         // Perform query
         
         Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
                 .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.in(tsIriToDataIriListMap.keySet())))
                 .orderBy(timeColumn.asc()).fetch();
-        
-        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
-        System.out.println("Actual query took " + durationNano + " ns");
-        startNanoTime = System.nanoTime();
 
         // Split up results based on time series IRI
 
         // This is a workaround if the compiler is truly confused; it should not be necessary normally.
         Map<String, Result<? extends Record>> recordsByTsIri = (Map<String, Result<? extends Record>>) (Object) queryResult.intoGroups(TS_IRI_COLUMN);
-
-        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
-        System.out.println("Grouping result took " + durationNano + " ns");
-        startNanoTime = System.nanoTime();
 
         Map<String, TimeSeries<T>> tsDataMap = new HashMap<>();
 
@@ -737,9 +707,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             tsDataMap.put(tsIri, new TimeSeries<>(timeValues, dataIris, dataValues));
 
         });
-
-        durationNano = System.nanoTime()- startNanoTime; // Duration in nanoseconds
-        System.out.println("Populating time series took " + durationNano + " ns");
 
         return tsDataMap;
     }
