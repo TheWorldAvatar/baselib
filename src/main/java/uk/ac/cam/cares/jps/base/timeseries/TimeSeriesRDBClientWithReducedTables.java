@@ -29,6 +29,7 @@ import org.jooq.InsertValuesStepN;
 import org.jooq.Record;
 import org.jooq.Record2;
 import org.jooq.Record3;
+import org.jooq.Record4;
 import org.jooq.Result;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
@@ -554,10 +555,12 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
 
             // Get a map of time series to data series
 
-            List<Map<String, List<String>>> listMap = getTimeseriesOfDataseries(dataIRI, context);
+            List<Map<?, ?>> listMap = getTimeseriesOfDataseries(dataIRI, context);
 
-            Map<String, List<String>>  tsTableToIriListMap = listMap.get(0);
-            Map<String, List<String>>  tsIriToDataIriListMap = listMap.get(1);
+            // Cast the entries with proper types
+            Map<String, List<String>> tsTableToIriListMap = (Map<String, List<String>>) listMap.get(0);
+            Map<String, List<String>> tsIriToDataIriListMap = (Map<String, List<String>>) listMap.get(1);
+            Map<String, String> dataIRIToColumnName = (Map<String, String>) listMap.get(2);
 
             durationNano = System.nanoTime() - startNanoTime; // Duration in nanoseconds
             System.out.println("Get time series map took " + durationNano + " ns");
@@ -571,7 +574,17 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
                     tsIri -> tsIriToDataIriListMap.get(tsIri) // Value for the sub-map is its List<String> dataIris
                 ));
 
-                Map<String, TimeSeries<T>> currentTimeSeriesDataMap = bulkQueryTimeSeriesWithinBounds(tableName, currentTableTsIriToDataIriSubMap, null, null, context);
+                // Step 1: Flatten all dataIRIs from the submap into a single Set<String> to remove duplicates
+                Set<String> relevantDataIris = currentTableTsIriToDataIriSubMap.values().stream()
+                    .flatMap(List::stream)
+                    .collect(Collectors.toSet());
+
+                // Step 2: Filter the main dataIRIToColumnName map using the collected dataIRIs
+                Map<String, String> filteredDataIriToColumnNameMap = dataIRIToColumnName.entrySet().stream()
+                    .filter(entry -> relevantDataIris.contains(entry.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                Map<String, TimeSeries<T>> currentTimeSeriesDataMap = bulkQueryTimeSeriesWithinBounds(tableName, currentTableTsIriToDataIriSubMap, filteredDataIriToColumnNameMap, null, null, context);
                 timeSeriesDataMap.putAll(currentTimeSeriesDataMap);
             
             });
@@ -597,13 +610,14 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
      * @param dataIRI list of data IRIs provided as string
      * @param context
      */
-    public List<Map<String, List<String>>> getTimeseriesOfDataseries(List<String> dataIRI, DSLContext context) {
+    public List<Map<?,?>> getTimeseriesOfDataseries(List<String> dataIRIs, DSLContext context) {
 
         Table<?> table = getDSLTable(DB_TABLE_NAME);
 
-        Condition combinedCondition = DATA_IRI_COLUMN.in(dataIRI);
+        Condition combinedCondition = DATA_IRI_COLUMN.in(dataIRIs);
 
-        Result<Record3<String, String, String>> queryResult = context.select(TABLENAME_COLUMN, TS_IRI_COLUMN, DATA_IRI_COLUMN).from(table)
+        Result<Record4<String, String, String, String>> queryResult = 
+                context.select(TABLENAME_COLUMN, TS_IRI_COLUMN, DATA_IRI_COLUMN, COLUMNNAME_COLUMN).from(table)
                 .where(combinedCondition).fetch();
         
         //TODO: JOOQ 3.15 or above would be able to produce nested maps with intoGroups
@@ -617,11 +631,19 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             tableToTsIriDeduped.put(entry.getKey(), new ArrayList<>(uniqueTsIris));
         }
 
+        Map<String, String> dataIRIToColumnName = new HashMap<>();
+        for (Record4<String, String, String, String> record : queryResult) {
+            String dataIRI = record.get(DATA_IRI_COLUMN);
+            String columnName = record.get(COLUMNNAME_COLUMN);
+            dataIRIToColumnName.put(dataIRI, columnName);
+        }
+
 
         //TODO: improve this for clarity. Maybe make this its own class
-        List<Map<String, List<String>>> listOfMaps = new ArrayList<>();
+        List<Map<?, ?>> listOfMaps = new ArrayList<>();
         listOfMaps.add(tableToTsIriDeduped);
         listOfMaps.add(TsIriToDataIri);
+        listOfMaps.add(dataIRIToColumnName);
 
         return listOfMaps;
 
@@ -630,7 +652,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
     // Can return multiple time series, providing that they are all in the same table
 
     private Map<String, TimeSeries<T>> bulkQueryTimeSeriesWithinBounds(String tsTableName, Map<String, List<String>> tsIriToDataIriListMap,
-        T lowerBound, T upperBound, DSLContext context) {
+        Map<String, String> dataColumnNames, T lowerBound, T upperBound, DSLContext context) {
 
         long startNanoTime = System.nanoTime();
 
@@ -640,10 +662,6 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         uniqueFieldsSet.add(TS_IRI_COLUMN);
 
         Map<String, Map<String, Field<Object>>> tsDataColumnFields = new HashMap<>();
-
-        List<String> allDataIris = tsIriToDataIriListMap.values().stream().flatMap(List::stream).collect(Collectors.toList());
-        Map<String, String> dataColumnNames = bulkGetColumnName(allDataIris, context);
-
 
         tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
 
