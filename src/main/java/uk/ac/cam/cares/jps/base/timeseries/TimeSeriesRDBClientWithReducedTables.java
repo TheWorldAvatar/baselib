@@ -28,7 +28,6 @@ import org.jooq.InsertValuesStep4;
 import org.jooq.InsertValuesStepN;
 import org.jooq.Record;
 import org.jooq.Record2;
-import org.jooq.Record3;
 import org.jooq.Record4;
 import org.jooq.Result;
 import org.jooq.Table;
