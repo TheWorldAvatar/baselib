@@ -612,7 +612,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         
         //TODO: JOOQ 3.15 or above would be able to produce nested maps with intoGroups
         Map<String, List<String>> tableToTsIri = queryResult.intoGroups(TABLENAME_COLUMN, TS_IRI_COLUMN);
-        Map<String, List<String>> TsIriToDataIri = queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
+        Map<String, List<String>> tsIriToDataIri = queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
 
         // Post-process to ensure uniqueness per table
         Map<String, List<String>> tableToTsIriDeduped = new HashMap<>();
@@ -632,7 +632,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         //TODO: improve this for clarity. Maybe make this its own class
         List<Map<?, ?>> listOfMaps = new ArrayList<>();
         listOfMaps.add(tableToTsIriDeduped);
-        listOfMaps.add(TsIriToDataIri);
+        listOfMaps.add(tsIriToDataIri);
         listOfMaps.add(dataIRIToColumnName);
 
         return listOfMaps;
