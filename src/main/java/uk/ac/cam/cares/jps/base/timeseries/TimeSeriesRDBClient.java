@@ -1599,6 +1599,20 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
     }
 
     /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI) {
+        try (Connection conn = getConnection()) {
+            return bulkGetTimeSeries(dataIRI, conn);
+        } catch (SQLException e) {
+            LOGGER.error(e.getMessage());
+            throw new JPSRuntimeException(exceptionPrefix + CONNECTION_ERROR, e);
+        }
+    }
+
+    /**
      * returns a TimeSeries object with the latest value of the given IRI
      * 
      * @param dataIRI
