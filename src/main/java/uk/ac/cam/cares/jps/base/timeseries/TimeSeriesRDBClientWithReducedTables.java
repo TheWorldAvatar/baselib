@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -558,10 +559,10 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             tsTableToIriListMap.forEach((tableName, tsIriList) -> {
 
                 Map<String, List<String>> currentTableTsIriToDataIriSubMap = tsIriList.stream()
-                .filter(tsIri -> tsIriToDataIriListMap.containsKey(tsIri)) // Ensure the tsIri exists in the main data map
+                .filter(tsIriToDataIriListMap::containsKey) // Ensure the tsIri exists in the main data map
                 .collect(Collectors.toMap(
                     tsIri -> tsIri,                        // Key for the sub-map is the tsIri
-                    tsIri -> tsIriToDataIriListMap.get(tsIri) // Value for the sub-map is its List<String> dataIris
+                    tsIriToDataIriListMap::get // Value for the sub-map is its List<String> dataIris
                 ));
 
                 // Step 1: Flatten all dataIRIs from the submap into a single Set<String> to remove duplicates
