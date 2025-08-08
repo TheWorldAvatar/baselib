@@ -202,7 +202,6 @@ interface TimeSeriesRDBClientInterface<T> {
      */
     TimeSeries<T> getTimeSeries(List<String> dataIRI, Connection conn);
 
-    
     /**
      * Retrieve multiple time series from RDB
      * 

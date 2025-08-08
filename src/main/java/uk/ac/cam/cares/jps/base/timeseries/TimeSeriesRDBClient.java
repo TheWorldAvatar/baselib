@@ -392,7 +392,8 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
 
     // internal parts of querying for time series data
 
-    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound, DSLContext context) {
+    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound,
+            DSLContext context) {
         // Retrieve table corresponding to the time series connected to the data IRIs
         Table<?> table = getTimeseriesTable(dataIRI.get(0), context);
 
@@ -452,9 +453,9 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
      * @param conn    connection to the RDB
      */
     public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
-        
+
         Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
-        
+
         // Initialise connection and set jOOQ DSL context
         DSLContext context = DSL.using(conn, DIALECT);
 
@@ -474,7 +475,7 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
             tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
                 // TODO: this should be done in parallel
                 // TODO: allow bounds to be defined by calling code (currently always null)
-                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context); 
+                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context);
 
                 timeSeriesDataMap.put(tsIri, tsData);
 
@@ -512,7 +513,7 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
                 .where(combinedCondition).fetch();
 
         return queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
-        
+
     }
 
     /**

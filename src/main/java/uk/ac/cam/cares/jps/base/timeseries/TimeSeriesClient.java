@@ -629,8 +629,6 @@ public class TimeSeriesClient<T> {
         return rdbClient.bulkGetTimeSeries(dataIRIs, conn);
     }
 
-    
-
     /**
      * Retrieve average value of an entire time series
      * 
