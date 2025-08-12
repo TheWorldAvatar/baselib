@@ -376,46 +376,7 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
             // (throws Exception if not)
             checkDataIsInSameTable(dataIRI, context);
 
-            // Retrieve table corresponding to the time series connected to the data IRIs
-            Table<?> table = getTimeseriesTable(dataIRI.get(0), context);
-
-            // Create map between data IRI and the corresponding column field in the table
-            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-            for (String data : dataIRI) {
-                String columnName = getColumnName(data, context);
-                Field<Object> field = DSL.field(DSL.name(columnName));
-                dataColumnFields.put(data, field);
-            }
-
-            // Retrieve list of column fields (including fixed time column)
-            List<Field<?>> columnList = new ArrayList<>();
-            columnList.add(timeColumn);
-            for (String data : dataIRI) {
-                columnList.add(dataColumnFields.get(data));
-            }
-
-            // Potentially update bounds (if no bounds were provided)
-            if (lowerBound == null) {
-                lowerBound = context.select(min(timeColumn)).from(table).fetch(min(timeColumn)).get(0);
-            }
-            if (upperBound == null) {
-                upperBound = context.select(max(timeColumn)).from(table).fetch(max(timeColumn)).get(0);
-            }
-
-            // Perform query
-            Result<? extends Record> queryResult = context.select(columnList).from(table)
-                    .where(timeColumn.between(lowerBound, upperBound))
-                    .orderBy(timeColumn.asc()).fetch();
-
-            // Collect results and return a TimeSeries object
-            List<T> timeValues = queryResult.getValues(timeColumn);
-            List<List<?>> dataValues = new ArrayList<>();
-            for (String data : dataIRI) {
-                List<?> column = queryResult.getValues(dataColumnFields.get(data));
-                dataValues.add(column);
-            }
-
-            return new TimeSeries<>(timeValues, dataIRI, dataValues);
+            return queryTimeSeriesWithinBounds(dataIRI, lowerBound, upperBound, context);
 
         } catch (JPSRuntimeException e) {
             // Re-throw JPSRuntimeExceptions
@@ -429,6 +390,52 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
 
     }
 
+    // internal parts of querying for time series data
+
+    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound,
+            DSLContext context) {
+        // Retrieve table corresponding to the time series connected to the data IRIs
+        Table<?> table = getTimeseriesTable(dataIRI.get(0), context);
+
+        // Create map between data IRI and the corresponding column field in the table
+        Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+        for (String data : dataIRI) {
+            String columnName = getColumnName(data, context);
+            Field<Object> field = DSL.field(DSL.name(columnName));
+            dataColumnFields.put(data, field);
+        }
+
+        // Retrieve list of column fields (including fixed time column)
+        List<Field<?>> columnList = new ArrayList<>();
+        columnList.add(timeColumn);
+        for (String data : dataIRI) {
+            columnList.add(dataColumnFields.get(data));
+        }
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(table).fetch(min(timeColumn)).get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(table).fetch(max(timeColumn)).get(0);
+        }
+
+        // Perform query
+        Result<? extends Record> queryResult = context.select(columnList).from(table)
+                .where(timeColumn.between(lowerBound, upperBound))
+                .orderBy(timeColumn.asc()).fetch();
+
+        // Collect results and return a TimeSeries object
+        List<T> timeValues = queryResult.getValues(timeColumn);
+        List<List<?>> dataValues = new ArrayList<>();
+        for (String data : dataIRI) {
+            List<?> column = queryResult.getValues(dataColumnFields.get(data));
+            dataValues.add(column);
+        }
+
+        return new TimeSeries<>(timeValues, dataIRI, dataValues);
+    }
+
     /**
      * Retrieve entire time series from RDB
      * 
@@ -437,6 +444,76 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
      */
     public TimeSeries<T> getTimeSeries(List<String> dataIRI, Connection conn) {
         return getTimeSeriesWithinBounds(dataIRI, null, null, conn);
+    }
+
+    /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param conn    connection to the RDB
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
+
+        Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
+
+        // Initialise connection and set jOOQ DSL context
+        DSLContext context = DSL.using(conn, DIALECT);
+
+        // All database interactions in try-block to ensure closure of connection
+        try {
+
+            // Check if central database lookup table exists
+            if (!checkCentralTableExists(conn)) {
+                throw new JPSRuntimeException(
+                        exceptionPrefix + "Central RDB lookup table has not been initialised yet");
+            }
+
+            // Get a map of time series to data series
+
+            Map<String, List<String>> tsIriToDataIriListMap = getTimeseriesOfDataseries(dataIRI, context);
+
+            tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
+                // TODO: this should be done in parallel
+                // TODO: allow bounds to be defined by calling code (currently always null)
+                TimeSeries<T> tsData = queryTimeSeriesWithinBounds(dataIris, null, null, context);
+
+                timeSeriesDataMap.put(tsIri, tsData);
+
+            });
+
+            return timeSeriesDataMap;
+
+        } catch (JPSRuntimeException e) {
+            // Re-throw JPSRuntimeExceptions
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+            // Throw all exceptions incurred by jooq (i.e. by SQL interactions with
+            // database) as JPSRuntimeException with respective message
+            throw new JPSRuntimeException(exceptionPrefix + SQL_ERROR, e);
+        }
+    }
+
+    /**
+     * Get time series IRI of all dataIRIs
+     * Requires existing RDB connection;
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param context
+     */
+    private Map<String, List<String>> getTimeseriesOfDataseries(List<String> dataIRI, DSLContext context) {
+
+        Table<?> table = getDSLTable(DB_TABLE_NAME);
+
+        List<Condition> conditions = dataIRI.stream().map(DATA_IRI_COLUMN::eq).collect(Collectors.toList());
+
+        Condition combinedCondition = DSL.or(conditions);
+
+        Result<Record2<String, String>> queryResult = context.select(TS_IRI_COLUMN, DATA_IRI_COLUMN).from(table)
+                .where(combinedCondition).fetch();
+
+        return queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
+
     }
 
     /**
@@ -1519,6 +1596,20 @@ public class TimeSeriesRDBClient<T> implements TimeSeriesRDBClientInterface<T> {
      */
     public TimeSeries<T> getTimeSeries(List<String> dataIRI) {
         return getTimeSeriesWithinBounds(dataIRI, null, null);
+    }
+
+    /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI) {
+        try (Connection conn = getConnection()) {
+            return bulkGetTimeSeries(dataIRI, conn);
+        } catch (SQLException e) {
+            LOGGER.error(e.getMessage());
+            throw new JPSRuntimeException(exceptionPrefix + CONNECTION_ERROR, e);
+        }
     }
 
     /**

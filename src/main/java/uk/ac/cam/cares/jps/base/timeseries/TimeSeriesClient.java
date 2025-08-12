@@ -619,6 +619,17 @@ public class TimeSeriesClient<T> {
     }
 
     /**
+     * Retrieve potentially multiple time series data history for given dataIRIs
+     * 
+     * @param dataIRIs list of data IRIs provided as string
+     * @param conn     connection to the RDB
+     * @return All data series from dataIRIs list as single TimeSeries object
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRIs, Connection conn) {
+        return rdbClient.bulkGetTimeSeries(dataIRIs, conn);
+    }
+
+    /**
      * Retrieve average value of an entire time series
      * 
      * @param dataIRI data IRI provided as string

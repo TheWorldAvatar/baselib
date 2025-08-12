@@ -3,6 +3,7 @@ package uk.ac.cam.cares.jps.base.timeseries;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 import org.jooq.SQLDialect;
 
@@ -200,6 +201,14 @@ interface TimeSeriesRDBClientInterface<T> {
      * @param conn    connection to the RDB
      */
     TimeSeries<T> getTimeSeries(List<String> dataIRI, Connection conn);
+
+    /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param conn    connection to the RDB
+     */
+    Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn);
 
     /**
      * returns a TimeSeries object with the latest value of the given IRI
