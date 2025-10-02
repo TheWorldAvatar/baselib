@@ -674,29 +674,6 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
-    /**
-     * used
-     * 
-     * @param dataIri
-     * @return
-     */
-    private Map<String, List<String>> getColumnToDataListMap(List<String> dataIri, Connection conn) {
-        DSLContext context = DSL.using(conn);
-        Result<Record3<String, String, Integer>> queryResult = context
-                .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_INDEX_COLUMN)
-                .from(getDSLTable(TS_LOOKUP_TABLE)).where(DATA_IRI_COLUMN.in(dataIri)).fetch();
-
-        List<String> queriedIri = queryResult.getValues(DATA_IRI_COLUMN);
-        List<String> queriedType = queryResult.getValues(DATA_TYPE_COLUMN);
-
-        Map<String, List<String>> columnToDataListMap = new HashMap<>();
-        for (int i = 0; i < queriedIri.size(); i++) {
-            columnToDataListMap.computeIfAbsent(queriedType.get(i), k -> new ArrayList<>());
-            columnToDataListMap.get(queriedType.get(i)).add(queriedIri.get(i));
-        }
-        return columnToDataListMap;
-    }
-
     private Table<Record> getDSLTable(String tableName) {
         if (schema != null) {
             return DSL.table(DSL.name(schema, tableName));
