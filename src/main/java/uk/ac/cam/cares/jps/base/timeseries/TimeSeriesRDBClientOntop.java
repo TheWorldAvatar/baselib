@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,14 +16,15 @@ import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jooq.Condition;
 import org.jooq.CreateSchemaFinalStep;
 import org.jooq.CreateTableColumnStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
-import org.jooq.InsertValuesStep3;
-import org.jooq.InsertValuesStepN;
+import org.jooq.InsertValuesStep1;
+import org.jooq.InsertValuesStep2;
+import org.jooq.InsertValuesStep4;
 import org.jooq.Record;
+import org.jooq.Record2;
 import org.jooq.Record3;
 import org.jooq.Result;
 import org.jooq.Table;
@@ -46,8 +46,6 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      */
     private static final Logger LOGGER = LogManager.getLogger(TimeSeriesRDBClientOntop.class);
 
-    private static final String INFO_SCHEMA = "information_schema";
-
     // URL and credentials for the relational database
     private String rdbURL = null;
     private String rdbUser = null;
@@ -56,15 +54,19 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     // Time series column field (for RDB)
     private final Field<T> timeColumn;
 
-    private static final String TS_LOOKUP_TABLE = "time_series_lookup_table";
-    private static final String TS_DATA_TABLE = "time_series_data_table";
+    private static final String TS_DATA_IRI_TABLE = "time_series_data_iri";
+    private static final String TS_DATA_TABLE = "time_series_data";
+    private static final String TS_DATA_TYPE_TABLE = "time_series_data_type";
     private static final String TIME_COLUMN = "time";
 
     private static final Field<String> DATA_IRI_COLUMN = DSL.field(DSL.name("data_iri"), String.class);
-    private static final Field<String> TS_IRI_COLUMN = DSL.field(DSL.name("time_series_iri"), String.class);
     private static final Field<String> DATA_TYPE_COLUMN = DSL.field(DSL.name("data_type"), String.class);
-    private static final Field<Integer> DATA_INDEX_COLUMN = DSL.field(DSL.name("data_index"),
-            SQLDataType.INTEGER.identity(true)); // makes the value increment automatically
+    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN = DSL.field(DSL.name("data_type_index"),
+            SQLDataType.INTEGER.identity(true));// makes the value increment automatically
+    private static final Field<Integer> DATA_IRI_INDEX_COLUMN = DSL.field(DSL.name("data_iri_index"),
+            SQLDataType.INTEGER.identity(true));
+    private static final Field<Integer> DATA_INDEX_COLUMN = DSL.field(DSL.name("id"),
+            SQLDataType.INTEGER.identity(true));
 
     // Error message
     private static final String SQL_ERROR = "Error while executing SQL command";
@@ -79,7 +81,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      * @param timeClass class of the timestamps of the time series
      */
     public TimeSeriesRDBClientOntop(Class<T> timeClass) {
-        timeColumn = DSL.field(DSL.name(TIME_COLUMN), timeClass);
+        timeColumn = DSL.field(DSL.name(TIME_COLUMN), DefaultDataType.getDataType(DIALECT, timeClass).nullable(false));
         this.timeClass = timeClass;
     }
 
@@ -101,23 +103,29 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public List<Integer> bulkInitTimeSeriesTable(List<List<String>> dataIRIs, List<List<Class<?>>> dataClasses,
             List<String> tsIRIs, Integer srid, Connection conn) {
+        if (tsIRIs != null) {
+            if (!tsIRIs.isEmpty()) {
+                LOGGER.warn("Time series IRIs will be ignored for this RDB client class");
+            }
+        }
         try {
             if (schema != null) {
                 initSchemaIfNotExists(conn);
             }
-
-            initCentralTableIfNotExists(conn);
+            initDataTypeTableIfNotExists(conn);
+            initDataIriTableIfNotExists(conn);
 
             List<String> flatDataIRIs = dataIRIs.stream().flatMap(List::stream).collect(Collectors.toList());
             List<Class<?>> flatClasses = dataClasses.stream().flatMap(List::stream).collect(Collectors.toList());
-            List<String> flatTsIri = new ArrayList<>();
 
             // Check if any data has already been initialised (i.e. is associated with
             // different tsIRI)
             String faultyDataIRI = checkAnyDataHasTimeSeries(flatDataIRIs, conn);
             if (faultyDataIRI != null) {
-                throw new JPSRuntimeException(
-                        exceptionPrefix + "<" + faultyDataIRI + "> already has an assigned time series instance");
+                String errmsg = exceptionPrefix + "<" + faultyDataIRI
+                        + "> already has an assigned time series instance";
+                LOGGER.error(errmsg);
+                throw new JPSRuntimeException(errmsg);
             }
 
             // Ensure that there is a class for each data IRI
@@ -127,18 +135,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                     // Assume all data IRIs have failed at the moment
                     return IntStream.range(0, dataIRIs.size()).boxed().collect(Collectors.toList());
                 }
-                flatTsIri.addAll(Collections.nCopies(dataIRIs.get(i).size(), tsIRIs.get(i)));
             }
 
             initDataTableIfNotExists(conn);
-            initColumnsIfNotExist(flatClasses, srid, conn);
-            updateLookupTable(flatDataIRIs, flatClasses, flatTsIri, srid, conn);
+            initDataTypesIfNotExist(flatClasses, srid, conn);
+            updateDataIriTable(flatDataIRIs, flatClasses, srid, conn);
 
             // returning empty list because it is not really applicable to this class
             return new ArrayList<>();
-        } catch (JPSRuntimeException e) {
-            // Re-throw JPSRuntimeExceptions
-            throw e;
         } catch (Exception e) {
             // Throw all exceptions incurred by jooq (i.e. by SQL interactions with
             // database) as JPSRuntimeException with respective message
@@ -160,23 +164,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
 
         // perform a query to obtain column types associated with data to add
-        DSLContext context = DSL.using(conn);
-        Result<Record3<String, String, Integer>> queryResult = context
-                .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_INDEX_COLUMN)
-                .from(getDSLTable(TS_LOOKUP_TABLE)).where(DATA_IRI_COLUMN.in(dataIriFlatList)).fetch();
-
-        List<String> queriedIri = queryResult.getValues(DATA_IRI_COLUMN);
-        List<String> queriedType = queryResult.getValues(DATA_TYPE_COLUMN);
-        List<Integer> queriedIndex = queryResult.getValues(DATA_INDEX_COLUMN);
-
-        Map<String, List<String>> columnToDataListMap = new HashMap<>();
-        Map<String, Integer> iriToIndexMap = new HashMap<>();
-        for (int i = 0; i < queriedIri.size(); i++) {
-            columnToDataListMap.computeIfAbsent(queriedType.get(i), k -> new ArrayList<>());
-            columnToDataListMap.get(queriedType.get(i)).add(queriedIri.get(i));
-
-            iriToIndexMap.put(queriedIri.get(i), queriedIndex.get(i));
-        }
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(dataIriFlatList, conn);
 
         Map<String, List<?>> dataToValueListMap = new HashMap<>();
         Map<String, List<T>> dataToTimeListMap = new HashMap<>();
@@ -192,33 +180,44 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         // 1 query per data type/column, collect queries
         List<String> queries = new ArrayList<>();
-        columnToDataListMap.entrySet().forEach(entry -> {
-            String column = entry.getKey();
-            List<String> dataIriList = entry.getValue();
+        DSLContext context = DSL.using(DIALECT);
+        dataColumnMetadata.getColumns().forEach(column -> {
+            List<String> dataIriList = dataColumnMetadata.getDataIriList(column);
 
-            InsertValuesStep3<Record, T, Integer, Object> insertStep = context.insertInto(getDSLTable(TS_DATA_TABLE))
-                    .columns(timeColumn, DATA_INDEX_COLUMN, DSL.field(DSL.name(column)));
+            InsertValuesStep4<Record, T, String, Integer, Object> insertStep = context
+                    .insertInto(getDSLTable(TS_DATA_TABLE))
+                    .columns(timeColumn, DATA_IRI_COLUMN, DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)));
 
+            int numRows = 0;
             for (String dataIri : dataIriList) {
                 List<T> timeList = dataToTimeListMap.get(dataIri);
                 List<?> valueList = dataToValueListMap.get(dataIri);
+                int dataIndex = dataColumnMetadata.getIndex(dataIri);
 
                 for (int i = 0; i < timeList.size(); i++) {
-                    insertStep = insertStep.values(timeList.get(i), iriToIndexMap.get(dataIri), valueList.get(i));
+                    if (timeList.get(i) == null) {
+                        LOGGER.warn("Null time value detected, skipping");
+                        continue;
+                    }
+                    insertStep = insertStep.values(timeList.get(i), dataIri, dataIndex, valueList.get(i));
+                    numRows += 1;
                 }
             }
-
-            // upsert
-            String upsertSql = String.format("ON CONFLICT (\"%s\", \"%s\") DO UPDATE SET \"%s\" = EXCLUDED.\"%s\"",
-                    timeColumn.getName(), DATA_INDEX_COLUMN.getName(), column, column);
-
-            StringBuilder insertStatement = new StringBuilder(insertStep.toString());
-            insertStatement.append(System.lineSeparator()).append(upsertSql);
-
-            queries.add(insertStatement.toString());
+            if (numRows > 0) {
+                // append upsert query manually
+                String upsertSql = String.format("ON CONFLICT (\"%s\", \"%s\") DO UPDATE SET \"%s\" = EXCLUDED.\"%s\"",
+                        timeColumn.getName(), DATA_IRI_INDEX_COLUMN.getName(), column, column);
+                StringBuilder insertStatement = new StringBuilder(insertStep.toString());
+                insertStatement.append(System.lineSeparator()).append(upsertSql);
+                queries.add(insertStatement.toString());
+            }
         });
 
         // execute queries
+        if (queries.isEmpty()) {
+            return;
+        }
+
         try (Statement statement = conn.createStatement()) {
             for (String query : queries) {
                 statement.addBatch(query);
@@ -230,10 +229,47 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
+    private DataColumnMetadata getDataColumnMetadata(List<String> dataIriList, Connection conn) {
+        DSLContext context = DSL.using(conn);
+
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_type_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_type_index"), SQLDataType.INTEGER.identity(true));
+
+        Result<Record3<String, String, Integer>> queryResult = context
+                .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_IRI_INDEX_COLUMN)
+                .from(getDSLTable(TS_DATA_IRI_TABLE).as("a"))
+                .leftJoin(getDSLTable(TS_DATA_TYPE_TABLE).as("b")).on(aliasedField1.eq(aliasedField2))
+                .where(DATA_IRI_COLUMN.in(dataIriList)).fetch();
+
+        DataColumnMetadata dataColumnMetadata = new DataColumnMetadata();
+        for (Record3<String, String, Integer> row : queryResult) {
+            String dataType = row.get(DATA_TYPE_COLUMN);
+            String dataIri = row.get(DATA_IRI_COLUMN);
+            int dataIndex = row.get(DATA_IRI_INDEX_COLUMN);
+
+            dataColumnMetadata.setColumn(dataIri, dataType);
+            dataColumnMetadata.setIndex(dataIri, dataIndex);
+        }
+
+        return dataColumnMetadata;
+    }
+
+    /**
+     * each time series will contain only a single dataset in this Ontop version
+     */
     @Override
-    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'bulkGetTimeSeries'");
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIriList, Connection conn) {
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(dataIriList, conn);
+
+        List<Field<?>> columnFields = dataColumnMetadata.getColumns().stream().map(c -> DSL.field(DSL.name(c)))
+                .collect(Collectors.toList());
+        columnFields.add(timeColumn);
+        columnFields.add(DATA_IRI_INDEX_COLUMN);
+
+        DSLContext context = DSL.using(conn);
+        context.select(columnFields).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex())).fetch();
+        return null;
     }
 
     @Override
@@ -478,17 +514,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     public String checkAnyDataHasTimeSeries(List<String> dataIRIs, Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
 
-        Table<?> table = getDSLTable(TS_LOOKUP_TABLE);
+        Table<?> table = getDSLTable(TS_DATA_IRI_TABLE);
 
-        List<Condition> conditions = dataIRIs.stream().map(DATA_IRI_COLUMN::eq).collect(Collectors.toList());
-
-        Condition combinedCondition = DSL.or(conditions);
-
-        Result<Record> result = context.select().from(table).where(combinedCondition).fetch();
+        List<String> result = context.select(DATA_IRI_COLUMN).from(table).where(DATA_IRI_COLUMN.in(dataIRIs))
+                .fetch(DATA_IRI_COLUMN);
 
         // Check if the result is non-empty and return the first element
         if (!result.isEmpty()) {
-            return result.get(0).getValue(DATA_IRI_COLUMN.getName(), String.class);
+            return result.get(0);
         }
 
         return null; // If no data IRI exists
@@ -497,8 +530,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public void addColumnsToExistingTimeSeries(List<String> dataIRIs, List<Class<?>> dataClasses, String tsIri,
             Integer srid, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addColumnsToExistingTimeSeries'");
+        throw new UnsupportedOperationException("'addColumnsToExistingTimeSeries' is not applicable to this class");
     }
 
     @Override
@@ -524,35 +556,55 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
+    private void initDataTypeTableIfNotExists(Connection conn) {
+        DSLContext context = DSL.using(conn, DIALECT);
+        context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE)).column(DATA_TYPE_COLUMN)
+                .column(DATA_TYPE_INDEX_COLUMN)
+                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN)).execute();
+        context.createIndexIfNotExists("ts_data_type_table_idx").on(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_COLUMN)
+                .execute();
+    }
+
     /**
      * Initialise central database lookup table
      * 
      * @param context
      * 
      */
-    private void initCentralTableIfNotExists(Connection conn) {
+    private void initDataIriTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        // Initialise central lookup table: only creates empty table if it does not
-        // exist, otherwise it is left unchanged
-        try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_LOOKUP_TABLE))) {
-            createStep.column(DATA_IRI_COLUMN).column(TS_IRI_COLUMN).column(DATA_INDEX_COLUMN).column(DATA_TYPE_COLUMN)
-                    .constraints(DSL.primaryKey(DATA_INDEX_COLUMN)).execute();
+        try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_IRI_TABLE))) {
+            createStep.column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN).column(DATA_TYPE_INDEX_COLUMN)
+                    .constraints(
+                            DSL.unique(DATA_IRI_COLUMN),
+                            DSL.primaryKey(DATA_IRI_INDEX_COLUMN),
+                            DSL.foreignKey(DATA_TYPE_INDEX_COLUMN)
+                                    .references(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_INDEX_COLUMN)
+                                    .onDeleteCascade())
+                    .execute();
         }
 
-        context.createIndexIfNotExists("ts_lookup_table_iri_idx").on(getDSLTable(TS_LOOKUP_TABLE), DATA_IRI_COLUMN)
+        context.createIndexIfNotExists("ts_data_iri_table_iri_idx").on(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_COLUMN)
                 .execute();
+        context.createIndexIfNotExists("ts_data_iri_table_data_type_idx")
+                .on(getDSLTable(TS_DATA_IRI_TABLE), DATA_TYPE_INDEX_COLUMN).execute();
     }
 
     private void initDataTableIfNotExists(Connection conn) {
+        // row id used for ontop
         DSLContext context = DSL.using(conn, DIALECT);
-        context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE)).column(timeColumn).column(DATA_INDEX_COLUMN)
-                .constraints(
-                        DSL.foreignKey(DATA_INDEX_COLUMN).references(getDSLTable(TS_LOOKUP_TABLE), DATA_INDEX_COLUMN)
+        context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE)).column(DATA_INDEX_COLUMN).column(timeColumn)
+                .column(DATA_IRI_INDEX_COLUMN).column(DATA_IRI_COLUMN).constraints(
+                        DSL.primaryKey(DATA_INDEX_COLUMN),
+                        DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
+                                .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
                                 .onDeleteCascade(),
-                        DSL.unique(DATA_INDEX_COLUMN, timeColumn))
+                        DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn))
                 .execute();
 
         context.createIndexIfNotExists("ts_data_table_time_idx").on(getDSLTable(TS_DATA_TABLE), timeColumn).execute();
+        context.createIndexIfNotExists("ts_data_table_data_iri_idx")
+                .on(getDSLTable(TS_DATA_TABLE), DATA_IRI_COLUMN).execute();
     }
 
     /**
@@ -563,7 +615,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      * @param conn
      * @throws SQLException
      */
-    private void initColumnsIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) throws SQLException {
+    private void initDataTypesIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) throws SQLException {
         // collect geometry classes that are initialised separately
         List<String> additionalGeomColumns = new ArrayList<>();
 
@@ -582,35 +634,42 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         Set<String> columnNames = columnNameToClassMap.keySet();
 
         DSLContext context = DSL.using(conn, DIALECT);
-        Table<Record> columns = DSL.table(DSL.name(INFO_SCHEMA, "columns"));
-        Field<String> tableNameColumn = DSL.field(DSL.name("table_name"), String.class);
-        Field<String> columnNameColumn = DSL.field(DSL.name("column_name"), String.class);
-
-        Condition condition = tableNameColumn.eq(TS_DATA_TABLE).and(DATA_TYPE_COLUMN.in(columnNames));
-
-        if (schema != null) {
-            condition = condition.and(DSL.field(DSL.name("table_schema"), String.class).eq(schema));
-        }
 
         // get columns that are already initialised in the database
-        List<String> existingColumns = context.select(columnNameColumn).from(columns).where(condition)
-                .fetch(columnNameColumn);
+        List<String> existingColumns = context.select(DATA_TYPE_COLUMN).from(getDSLTable(TS_DATA_TYPE_TABLE))
+                .where(DATA_TYPE_COLUMN.in(columnNames)).fetch(DATA_TYPE_COLUMN);
 
-        // filter columns that are not initialised and are not geometries
+        // filter columns that are not initialised
         List<String> columnsToInitialise = columnNames.stream()
-                .filter(c -> !existingColumns.contains(c) && !additionalGeomColumns.contains(c))
-                .collect(Collectors.toList());
+                .filter(c -> !existingColumns.contains(c)).collect(Collectors.toList());
 
+        // two queries are performed here, one to add entries to the data type table,
+        // and the second to add columns to the data table. Geometry columns are added
+        // separately later due to jooq's restriction
         if (!columnsToInitialise.isEmpty()) {
             List<Field<?>> fields = new ArrayList<>();
+            InsertValuesStep1<Record, String> insertStep = context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE),
+                    DATA_TYPE_COLUMN);
             for (int i = 0; i < columnsToInitialise.size(); i++) {
                 String columnToInit = columnsToInitialise.get(i);
-                fields.add(DSL.field(DSL.name(columnToInit), columnNameToClassMap.get(columnToInit)));
+
+                if (!additionalGeomColumns.contains(columnToInit)) {
+                    fields.add(DSL.field(DSL.name(columnToInit), columnNameToClassMap.get(columnToInit)));
+                }
+
+                insertStep.values(columnToInit);
             }
-            context.alterTable(getDSLTable(TS_DATA_TABLE)).add(fields).execute();
+            insertStep.execute();
+
+            if (!fields.isEmpty()) {
+                context.alterTable(getDSLTable(TS_DATA_TABLE)).add(fields).execute();
+            }
         }
 
-        if (!additionalGeomColumns.isEmpty()) {
+        // check if any of the geometry columns have been initialised
+        List<String> geomColumnsToAdd = additionalGeomColumns.stream().filter(c -> !existingColumns.contains(c))
+                .collect(Collectors.toList());
+        if (!geomColumnsToAdd.isEmpty()) {
             addGeometryColumns(additionalGeomColumns, conn);
         }
     }
@@ -636,24 +695,26 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
-    private void updateLookupTable(List<String> dataIriList, List<Class<?>> classes, List<String> tsIriList,
-            Integer srid, Connection conn) {
+    private void updateDataIriTable(List<String> dataIriList, List<Class<?>> classes, Integer srid, Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
 
-        List<Field<?>> columnList = new ArrayList<>();
-        columnList.add(DATA_IRI_COLUMN);
-        columnList.add(DATA_TYPE_COLUMN);
-        columnList.add(TS_IRI_COLUMN);
+        // first query the data type index from the data type table
+        List<String> columnNames = classes.stream().map(c -> getColumnName(c, srid)).collect(Collectors.toList());
 
-        InsertValuesStepN<Record> insertStep = context.insertInto(getDSLTable(TS_LOOKUP_TABLE), columnList);
+        Result<Record2<String, Integer>> queryResult = context.select(DATA_TYPE_COLUMN, DATA_TYPE_INDEX_COLUMN)
+                .from(getDSLTable(TS_DATA_TYPE_TABLE)).where(DATA_TYPE_COLUMN.in(columnNames)).fetch();
+
+        Map<String, Integer> dataTypeToIndexMap = new HashMap<>();
+        for (Record2<String, Integer> record : queryResult) {
+            dataTypeToIndexMap.put(record.get(DATA_TYPE_COLUMN), record.get(DATA_TYPE_INDEX_COLUMN));
+        }
+
+        InsertValuesStep2<Record, String, Integer> insertStep = context.insertInto(getDSLTable(TS_DATA_IRI_TABLE),
+                DATA_IRI_COLUMN, DATA_TYPE_INDEX_COLUMN);
 
         for (int i = 0; i < dataIriList.size(); i++) {
-            List<String> values = new ArrayList<>();
-            values.add(dataIriList.get(i));
-            values.add(getColumnName(classes.get(i), srid));
-            values.add(tsIriList.get(i));
-
-            insertStep = insertStep.values(values);
+            int dataIndex = dataTypeToIndexMap.get(getColumnName(classes.get(i), srid));
+            insertStep = insertStep.values(dataIriList.get(i), dataIndex);
         }
 
         insertStep.execute();
@@ -679,6 +740,36 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
             return DSL.table(DSL.name(schema, tableName));
         } else {
             return DSL.table(DSL.name(tableName));
+        }
+    }
+
+    private class DataColumnMetadata {
+        private Map<String, List<String>> columnToDataListMap = new HashMap<>();
+        private Map<String, Integer> dataIriToIndexMap = new HashMap<>();
+
+        void setColumn(String dataIri, String column) {
+            columnToDataListMap.computeIfAbsent(column, k -> new ArrayList<>());
+            columnToDataListMap.get(column).add(dataIri);
+        }
+
+        void setIndex(String dataIri, int index) {
+            dataIriToIndexMap.put(dataIri, index);
+        }
+
+        Set<String> getColumns() {
+            return columnToDataListMap.keySet();
+        }
+
+        List<String> getDataIriList(String column) {
+            return columnToDataListMap.get(column);
+        }
+
+        int getIndex(String dataIri) {
+            return dataIriToIndexMap.get(dataIri);
+        }
+
+        List<Integer> getAllIndex() {
+            return new ArrayList<>(dataIriToIndexMap.values());
         }
     }
 }
