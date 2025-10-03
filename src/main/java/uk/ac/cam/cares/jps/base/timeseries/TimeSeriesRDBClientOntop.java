@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -249,6 +250,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
             dataColumnMetadata.setColumn(dataIri, dataType);
             dataColumnMetadata.setIndex(dataIri, dataIndex);
+            dataColumnMetadata.setType(dataIndex, dataType);
         }
 
         return dataColumnMetadata;
@@ -267,9 +269,40 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         columnFields.add(DATA_IRI_INDEX_COLUMN);
 
         DSLContext context = DSL.using(conn);
-        context.select(columnFields).from(getDSLTable(TS_DATA_TABLE))
-                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex())).fetch();
-        return null;
+        Result<Record> queryResult = context.select(columnFields).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex())).orderBy(timeColumn.asc()).fetch();
+
+        Map<String, TimeSeries<T>> iriToTsMap = new HashMap<>();
+        Map<Integer, List<Object>> indexToValueListMap = new HashMap<>();
+        Map<Integer, List<T>> indexToTimeListMap = new HashMap<>();
+
+        for (Record row : queryResult) {
+            int dataIndex = row.get(DATA_IRI_INDEX_COLUMN);
+            String column = dataColumnMetadata.getType(dataIndex);
+
+            Field<Object> columnField = DSL.field(DSL.name(column));
+
+            indexToValueListMap.computeIfAbsent(dataIndex, k -> new ArrayList<>());
+            indexToValueListMap.get(dataIndex).add(row.get(columnField));
+
+            indexToTimeListMap.computeIfAbsent(dataIndex, k -> new ArrayList<>());
+            indexToTimeListMap.get(dataIndex).add(row.get(timeColumn));
+        }
+
+        indexToValueListMap.entrySet().forEach(entry -> {
+            int index = entry.getKey();
+            List<Object> values = entry.getValue();
+            List<T> timeList = indexToTimeListMap.get(index);
+            String dataIri = dataColumnMetadata.getDataIri(index);
+
+            List<List<?>> valuesList = new ArrayList<>();
+            valuesList.add(values);
+
+            TimeSeries<T> timeseries = new TimeSeries<>(timeList, Arrays.asList(dataIri), valuesList);
+            iriToTsMap.put(dataIri, timeseries);
+        });
+
+        return iriToTsMap;
     }
 
     @Override
@@ -312,8 +345,10 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         try (Connection conn = getConnection()) {
             addTimeSeriesData(tsList, conn);
         } catch (SQLException e) {
+            String errmsg = exceptionPrefix + "Error while adding time series data";
+            LOGGER.error(errmsg);
             LOGGER.error(e.getMessage());
-            throw new JPSRuntimeException(e);
+            throw new JPSRuntimeException(errmsg, e);
         }
     }
 
@@ -373,8 +408,12 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public TimeSeries<T> getTimeSeries(List<String> dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimeSeries'");
+        if (dataIRI.size() != 1) {
+            String errmsg = "Only one IRI can be provided for this class";
+            throw new JPSRuntimeException(errmsg);
+        }
+        Map<String, TimeSeries<T>> map = bulkGetTimeSeries(dataIRI, conn);
+        return map.values().iterator().next();
     }
 
     @Override
@@ -452,8 +491,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public TimeSeries<T> getTimeSeries(List<String> dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimeSeries'");
+        try (Connection conn = getConnection()) {
+            return getTimeSeries(dataIRI, conn);
+        } catch (SQLException e) {
+            String errmsg = exceptionPrefix + "Error while getting time series data";
+            LOGGER.error(errmsg);
+            LOGGER.error(e.getMessage());
+            throw new JPSRuntimeException(errmsg, e);
+        }
     }
 
     @Override
@@ -603,6 +648,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                 .execute();
 
         context.createIndexIfNotExists("ts_data_table_time_idx").on(getDSLTable(TS_DATA_TABLE), timeColumn).execute();
+        context.createIndexIfNotExists("ts_data_table_data_iri_index_idx")
+                .on(getDSLTable(TS_DATA_TABLE), DATA_IRI_INDEX_COLUMN).execute();
         context.createIndexIfNotExists("ts_data_table_data_iri_idx")
                 .on(getDSLTable(TS_DATA_TABLE), DATA_IRI_COLUMN).execute();
     }
@@ -746,6 +793,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private class DataColumnMetadata {
         private Map<String, List<String>> columnToDataListMap = new HashMap<>();
         private Map<String, Integer> dataIriToIndexMap = new HashMap<>();
+        private Map<Integer, String> indexToDataIriMap = new HashMap<>();
+        private Map<Integer, String> indexToTypeMap = new HashMap<>();
 
         void setColumn(String dataIri, String column) {
             columnToDataListMap.computeIfAbsent(column, k -> new ArrayList<>());
@@ -754,6 +803,15 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         void setIndex(String dataIri, int index) {
             dataIriToIndexMap.put(dataIri, index);
+            indexToDataIriMap.put(index, dataIri);
+        }
+
+        void setType(int index, String type) {
+            indexToTypeMap.put(index, type);
+        }
+
+        String getType(int index) {
+            return indexToTypeMap.get(index);
         }
 
         Set<String> getColumns() {
@@ -766,6 +824,10 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         int getIndex(String dataIri) {
             return dataIriToIndexMap.get(dataIri);
+        }
+
+        String getDataIri(int index) {
+            return indexToDataIriMap.get(index);
         }
 
         List<Integer> getAllIndex() {
