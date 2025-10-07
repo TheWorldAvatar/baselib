@@ -23,7 +23,7 @@ import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertValuesStep1;
 import org.jooq.InsertValuesStep2;
-import org.jooq.InsertValuesStep4;
+import org.jooq.InsertValuesStep3;
 import org.jooq.Record;
 import org.jooq.Record2;
 import org.jooq.Record3;
@@ -62,10 +62,15 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     private static final Field<String> DATA_IRI_COLUMN = DSL.field(DSL.name("data_iri"), String.class);
     private static final Field<String> DATA_TYPE_COLUMN = DSL.field(DSL.name("data_type"), String.class);
-    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN = DSL.field(DSL.name("data_type_index"),
+
+    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN = DSL.field(DSL.name("data_type_index"), Integer.class);
+    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN_SERIAL = DSL.field(DSL.name("data_type_index"),
             SQLDataType.INTEGER.identity(true));// makes the value increment automatically
-    private static final Field<Integer> DATA_IRI_INDEX_COLUMN = DSL.field(DSL.name("data_iri_index"),
+
+    private static final Field<Integer> DATA_IRI_INDEX_COLUMN = DSL.field(DSL.name("data_iri_index"), Integer.class);
+    private static final Field<Integer> DATA_IRI_INDEX_COLUMN_SERIAL = DSL.field(DSL.name("data_iri_index"),
             SQLDataType.INTEGER.identity(true));
+
     private static final Field<Integer> DATA_INDEX_COLUMN = DSL.field(DSL.name("id"),
             SQLDataType.INTEGER.identity(true));
 
@@ -185,9 +190,9 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         dataColumnMetadata.getColumns().forEach(column -> {
             List<String> dataIriList = dataColumnMetadata.getDataIriList(column);
 
-            InsertValuesStep4<Record, T, String, Integer, Object> insertStep = context
+            InsertValuesStep3<Record, T, Integer, Object> insertStep = context
                     .insertInto(getDSLTable(TS_DATA_TABLE))
-                    .columns(timeColumn, DATA_IRI_COLUMN, DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)));
+                    .columns(timeColumn, DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)));
 
             int numRows = 0;
             for (String dataIri : dataIriList) {
@@ -200,7 +205,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                         LOGGER.warn("Null time value detected, skipping");
                         continue;
                     }
-                    insertStep = insertStep.values(timeList.get(i), dataIri, dataIndex, valueList.get(i));
+                    insertStep = insertStep.values(timeList.get(i), dataIndex, valueList.get(i));
                     numRows += 1;
                 }
             }
@@ -604,10 +609,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private void initDataTypeTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
         context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE)).column(DATA_TYPE_COLUMN)
-                .column(DATA_TYPE_INDEX_COLUMN)
-                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN)).execute();
-        context.createIndexIfNotExists("ts_data_type_table_idx").on(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_COLUMN)
-                .execute();
+                .column(DATA_TYPE_INDEX_COLUMN_SERIAL)
+                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL)).execute();
     }
 
     /**
@@ -619,18 +622,16 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private void initDataIriTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
         try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_IRI_TABLE))) {
-            createStep.column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN).column(DATA_TYPE_INDEX_COLUMN)
+            createStep.column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN_SERIAL).column(DATA_TYPE_INDEX_COLUMN)
                     .constraints(
                             DSL.unique(DATA_IRI_COLUMN),
-                            DSL.primaryKey(DATA_IRI_INDEX_COLUMN),
+                            DSL.primaryKey(DATA_IRI_INDEX_COLUMN_SERIAL),
                             DSL.foreignKey(DATA_TYPE_INDEX_COLUMN)
                                     .references(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_INDEX_COLUMN)
                                     .onDeleteCascade())
                     .execute();
         }
 
-        context.createIndexIfNotExists("ts_data_iri_table_iri_idx").on(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_COLUMN)
-                .execute();
         context.createIndexIfNotExists("ts_data_iri_table_data_type_idx")
                 .on(getDSLTable(TS_DATA_IRI_TABLE), DATA_TYPE_INDEX_COLUMN).execute();
     }
@@ -639,19 +640,13 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         // row id used for ontop
         DSLContext context = DSL.using(conn, DIALECT);
         context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE)).column(DATA_INDEX_COLUMN).column(timeColumn)
-                .column(DATA_IRI_INDEX_COLUMN).column(DATA_IRI_COLUMN).constraints(
+                .column(DATA_IRI_INDEX_COLUMN).constraints(
                         DSL.primaryKey(DATA_INDEX_COLUMN),
                         DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
                                 .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
                                 .onDeleteCascade(),
                         DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn))
                 .execute();
-
-        context.createIndexIfNotExists("ts_data_table_time_idx").on(getDSLTable(TS_DATA_TABLE), timeColumn).execute();
-        context.createIndexIfNotExists("ts_data_table_data_iri_index_idx")
-                .on(getDSLTable(TS_DATA_TABLE), DATA_IRI_INDEX_COLUMN).execute();
-        context.createIndexIfNotExists("ts_data_table_data_iri_idx")
-                .on(getDSLTable(TS_DATA_TABLE), DATA_IRI_COLUMN).execute();
     }
 
     /**
