@@ -1,10 +1,17 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,15 +22,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.CreateSchemaFinalStep;
 import org.jooq.CreateTableColumnStep;
+import org.jooq.CreateTableConstraintStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertValuesStep1;
 import org.jooq.InsertValuesStep2;
 import org.jooq.InsertValuesStep3;
+import org.jooq.InsertValuesStep4;
 import org.jooq.Record;
 import org.jooq.Record2;
 import org.jooq.Record3;
@@ -33,6 +43,7 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.DefaultDataType;
 import org.jooq.impl.SQLDataType;
 import org.postgis.Geometry;
+import org.postgis.Point;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -42,6 +53,20 @@ import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
  * DefaultDataType.getDataType(DIALECT, String.class).getTypeName()
  */
 public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface<T> {
+    // these classes + srid combination are pre-initialised in the tables and ontop
+    // mapping if the provided classes do not fall within these classes checks will
+    // be made against the database to make the necessary initialisation
+    // However the ontop mapping will not include the extra classes
+    private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Point.class,
+            Integer.class);
+    private static final int PRECONFIGURED_SRID = 4326;
+
+    private static final List<Class<?>> TIMESTAMP_CLASSES = Arrays.asList(Instant.class, OffsetDateTime.class,
+            ZonedDateTime.class, LocalDateTime.class);
+
+    private static final String TIME_NUMBER_COLUMN = "time_as_number";
+    private static final String TIME_TIMESTAMP_COLUMN = "time_as_timestamp";
+
     /**
      * Logger for error output.
      */
@@ -54,11 +79,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private String schema = null;
     // Time series column field (for RDB)
     private final Field<T> timeColumn;
+    private final Field<?> theOtherTimeColumn;
 
     private static final String TS_DATA_IRI_TABLE = "time_series_data_iri";
     private static final String TS_DATA_TABLE = "time_series_data";
     private static final String TS_DATA_TYPE_TABLE = "time_series_data_type";
-    private static final String TIME_COLUMN = "time";
 
     private static final Field<String> DATA_IRI_COLUMN = DSL.field(DSL.name("data_iri"), String.class);
     private static final Field<String> DATA_TYPE_COLUMN = DSL.field(DSL.name("data_type"), String.class);
@@ -83,11 +108,39 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     /**
      * Standard constructor
+     * There are two time columns, one for numbers, and one for timestamp
+     * Instant is the special class where both columns are populated
+     * All other classes only use one time column
      * 
      * @param timeClass class of the timestamps of the time series
      */
     public TimeSeriesRDBClientOntop(Class<T> timeClass) {
-        timeColumn = DSL.field(DSL.name(TIME_COLUMN), DefaultDataType.getDataType(DIALECT, timeClass).nullable(false));
+        // special Instant case
+        if (timeClass == Instant.class) {
+            timeColumn = DSL.field(DSL.name(TIME_TIMESTAMP_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, timeClass).nullable(false));
+            // to store unix timestamp
+            theOtherTimeColumn = DSL.field(DSL.name(TIME_NUMBER_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, Double.class).nullable(false));
+
+        } else if (TIMESTAMP_CLASSES.contains(timeClass)) {
+            // timestamp case
+            timeColumn = DSL.field(DSL.name(TIME_TIMESTAMP_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, timeClass).nullable(false));
+            // dummy column
+            theOtherTimeColumn = DSL.field(DSL.name(TIME_NUMBER_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, Double.class));
+
+        } else if (Number.class.isAssignableFrom(timeClass)) {
+            // number case
+            timeColumn = DSL.field(DSL.name(TIME_NUMBER_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, timeClass).nullable(false));
+            // dummy column
+            theOtherTimeColumn = DSL.field(DSL.name(TIME_TIMESTAMP_COLUMN),
+                    DefaultDataType.getDataType(DIALECT, Instant.class));
+        } else {
+            throw new JPSRuntimeException("Unsupported time class: " + timeClass.getSimpleName());
+        }
         this.timeClass = timeClass;
     }
 
@@ -190,32 +243,70 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         dataColumnMetadata.getColumns().forEach(column -> {
             List<String> dataIriList = dataColumnMetadata.getDataIriList(column);
 
-            InsertValuesStep3<Record, T, Integer, Object> insertStep = context
-                    .insertInto(getDSLTable(TS_DATA_TABLE))
-                    .columns(timeColumn, DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)));
+            // special case, both time columns are used
+            if (timeClass == Instant.class) {
+                InsertValuesStep4<Record, T, Double, Integer, Object> insertStep = context
+                        .insertInto(getDSLTable(TS_DATA_TABLE)).columns(timeColumn, (Field<Double>) theOtherTimeColumn,
+                                DATA_IRI_INDEX_COLUMN,
+                                DSL.field(DSL.name(column)));
+                int numRows = 0;
+                for (String dataIri : dataIriList) {
+                    List<T> timeList = dataToTimeListMap.get(dataIri);
+                    List<?> valueList = dataToValueListMap.get(dataIri);
+                    int dataIndex = dataColumnMetadata.getIndex(dataIri);
 
-            int numRows = 0;
-            for (String dataIri : dataIriList) {
-                List<T> timeList = dataToTimeListMap.get(dataIri);
-                List<?> valueList = dataToValueListMap.get(dataIri);
-                int dataIndex = dataColumnMetadata.getIndex(dataIri);
+                    for (int i = 0; i < timeList.size(); i++) {
+                        if (timeList.get(i) == null) {
+                            LOGGER.warn("Null time value detected, skipping");
+                            continue;
+                        }
 
-                for (int i = 0; i < timeList.size(); i++) {
-                    if (timeList.get(i) == null) {
-                        LOGGER.warn("Null time value detected, skipping");
-                        continue;
+                        double millisecondsAsDouble = ((Instant) timeList.get(i)).toEpochMilli();
+                        insertStep = insertStep.values(timeList.get(i), millisecondsAsDouble / 1000, dataIndex,
+                                valueList.get(i));
+                        numRows += 1;
                     }
-                    insertStep = insertStep.values(timeList.get(i), dataIndex, valueList.get(i));
-                    numRows += 1;
                 }
-            }
-            if (numRows > 0) {
-                // append upsert query manually
-                String upsertSql = String.format("ON CONFLICT (\"%s\", \"%s\") DO UPDATE SET \"%s\" = EXCLUDED.\"%s\"",
-                        timeColumn.getName(), DATA_IRI_INDEX_COLUMN.getName(), column, column);
-                StringBuilder insertStatement = new StringBuilder(insertStep.toString());
-                insertStatement.append(System.lineSeparator()).append(upsertSql);
-                queries.add(insertStatement.toString());
+
+                if (numRows > 0) {
+                    // append upsert query manually
+                    String upsertSql = String.format(
+                            "ON CONFLICT (\"%s\", \"%s\") DO UPDATE SET \"%s\" = EXCLUDED.\"%s\"",
+                            timeColumn.getName(), DATA_IRI_INDEX_COLUMN.getName(), column, column);
+                    StringBuilder insertStatement = new StringBuilder(insertStep.toString());
+                    insertStatement.append(System.lineSeparator()).append(upsertSql);
+                    queries.add(insertStatement.toString());
+                }
+            } else {
+                // only one time column is used
+                InsertValuesStep3<Record, T, Integer, Object> insertStep = context
+                        .insertInto(getDSLTable(TS_DATA_TABLE))
+                        .columns(timeColumn, DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)));
+                int numRows = 0;
+                for (String dataIri : dataIriList) {
+                    List<T> timeList = dataToTimeListMap.get(dataIri);
+                    List<?> valueList = dataToValueListMap.get(dataIri);
+                    int dataIndex = dataColumnMetadata.getIndex(dataIri);
+
+                    for (int i = 0; i < timeList.size(); i++) {
+                        if (timeList.get(i) == null) {
+                            LOGGER.warn("Null time value detected, skipping");
+                            continue;
+                        }
+                        insertStep = insertStep.values(timeList.get(i), dataIndex, valueList.get(i));
+                        numRows += 1;
+                    }
+                }
+
+                if (numRows > 0) {
+                    // append upsert query manually
+                    String upsertSql = String.format(
+                            "ON CONFLICT (\"%s\", \"%s\") DO UPDATE SET \"%s\" = EXCLUDED.\"%s\"",
+                            timeColumn.getName(), DATA_IRI_INDEX_COLUMN.getName(), column, column);
+                    StringBuilder insertStatement = new StringBuilder(insertStep.toString());
+                    insertStatement.append(System.lineSeparator()).append(upsertSql);
+                    queries.add(insertStatement.toString());
+                }
             }
         });
 
@@ -611,6 +702,15 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE)).column(DATA_TYPE_COLUMN)
                 .column(DATA_TYPE_INDEX_COLUMN_SERIAL)
                 .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL)).execute();
+
+        // add preconfigured data types
+        InsertValuesStep1<Record, String> insertStep = context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE),
+                DATA_TYPE_COLUMN);
+
+        for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
+            insertStep = insertStep.values(getColumnName(clas, PRECONFIGURED_SRID));
+        }
+        insertStep.onConflictDoNothing().execute();
     }
 
     /**
@@ -639,14 +739,45 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private void initDataTableIfNotExists(Connection conn) {
         // row id used for ontop
         DSLContext context = DSL.using(conn, DIALECT);
-        context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE)).column(DATA_INDEX_COLUMN).column(timeColumn)
-                .column(DATA_IRI_INDEX_COLUMN).constraints(
-                        DSL.primaryKey(DATA_INDEX_COLUMN),
-                        DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
-                                .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
-                                .onDeleteCascade(),
-                        DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn))
-                .execute();
+
+        CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
+                .column(DATA_INDEX_COLUMN).column(timeColumn).column(theOtherTimeColumn).column(DATA_IRI_INDEX_COLUMN);
+
+        // add data columns
+        int numGeomColumn = 0;
+        for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
+            String columnName = getColumnName(clas, PRECONFIGURED_SRID);
+            if (Geometry.class.isAssignableFrom(clas)) {
+                createStep = createStep.column(DSL.field(DSL.name(columnName)));
+                numGeomColumn += 1;
+            } else {
+                createStep = createStep.column(DSL.field(DSL.name(columnName), clas));
+            }
+        }
+
+        if (numGeomColumn > 1) {
+            throw new JPSRuntimeException(
+                    "Make sure to modify the create table query accordingly after modifying PRECONFIGURED_DATA_CLASSES");
+        }
+
+        // add constraints and execute
+        CreateTableConstraintStep constraintStep = createStep.constraints(
+                DSL.primaryKey(DATA_INDEX_COLUMN),
+                DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
+                        .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
+                        .onDeleteCascade(),
+                DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn));
+
+        // this is a hack to add geometry column
+        String sql = constraintStep.toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
+
+        // submit query manually
+        try (Statement statement = conn.createStatement()) {
+            statement.execute(sql);
+        } catch (SQLException e) {
+            String errmsg = exceptionPrefix + "Error while creating time series data table";
+            throw new JPSRuntimeException(errmsg, e);
+        }
     }
 
     /**
@@ -658,12 +789,25 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      * @throws SQLException
      */
     private void initDataTypesIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) throws SQLException {
+        Set<Class<?>> classSet = new HashSet<Class<?>>(classes);
+        // check if there is any class that is outside of the preconfigured classes
+        List<Class<?>> classesToInit = new ArrayList<>();
+        classSet.forEach(c -> {
+            if ((Geometry.class.isAssignableFrom(c) && srid != PRECONFIGURED_SRID)
+                    || !PRECONFIGURED_DATA_CLASSES.contains(c)) {
+                classesToInit.add(c);
+            }
+        });
+
+        if (classesToInit.isEmpty()) {
+            return;
+        }
+
+        LOGGER.warn("Initialising additional data types that will not be in the Ontop mapping");
+
         // collect geometry classes that are initialised separately
         List<String> additionalGeomColumns = new ArrayList<>();
 
-        // column name for each class is fixed, will be used to check if they have been
-        // initialised
-        Set<Class<?>> classSet = new HashSet<Class<?>>(classes);
         Map<String, Class<?>> columnNameToClassMap = new HashMap<>();
         classSet.forEach(c -> {
             String columnName = getColumnName(c, srid);
@@ -783,6 +927,26 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         } else {
             return DSL.table(DSL.name(tableName));
         }
+    }
+
+    private String prepareMapping() {
+        String unixTRS = "http://dbpedia.org/resource/Unix_time";
+        String generic = "http://example.org/TRS_placeholder";
+
+        String obdaTemplate;
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("timeseries_ontop_template.obda")) {
+            obdaTemplate = IOUtils.toString(is, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new JPSRuntimeException("Error while reading timeseries_ontop_template.obda", e);
+        }
+
+        if (timeClass == Instant.class) {
+            obdaTemplate.replace("[TRS_REPLACE]", unixTRS);
+        } else {
+            obdaTemplate.replace("[TRS_REPLACE]", generic);
+        }
+
+        return obdaTemplate;
     }
 
     private class DataColumnMetadata {
