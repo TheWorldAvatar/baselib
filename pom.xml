@@ -10,7 +10,7 @@
 
     <!-- Please refer to the Versioning page on TheWorldAvatar wiki for
     details on how version numbers should be selected -->
-    <version>1.48.0</version>
+    <version>1.49.0-54-time-series-for-ontop-SNAPSHOT</version>
 
     <!-- Project Properties -->
     <properties>
@@ -57,9 +57,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <release>8</release>
+                    <source>11</source>
+                    <target>11</target>
                     <compilerArgs>
                         <arg>-Xpkginfo:always</arg>
                     </compilerArgs>
@@ -423,6 +422,13 @@
         <dependency>
             <groupId>org.glassfish.jersey.core</groupId>
             <artifactId>jersey-common</artifactId>
+        </dependency>
+
+        <!-- for interacting with the stack -->
+        <dependency>
+            <groupId>com.cmclinnovations</groupId>
+            <artifactId>stack-clients</artifactId>
+            <version>1.53.0</version>
         </dependency>
     </dependencies>
 
