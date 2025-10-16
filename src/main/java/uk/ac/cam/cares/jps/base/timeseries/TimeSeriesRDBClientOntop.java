@@ -2,7 +2,10 @@ package uk.ac.cam.cares.jps.base.timeseries;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -33,7 +36,7 @@ import org.jooq.Field;
 import org.jooq.InsertValuesStep1;
 import org.jooq.InsertValuesStep2;
 import org.jooq.InsertValuesStep3;
-import org.jooq.InsertValuesStep4;
+import org.jooq.InsertValuesStep5;
 import org.jooq.Record;
 import org.jooq.Record2;
 import org.jooq.Record3;
@@ -42,10 +45,18 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.jooq.impl.DefaultDataType;
 import org.jooq.impl.SQLDataType;
+import org.json.JSONArray;
 import org.postgis.Geometry;
 import org.postgis.Point;
 
+import com.cmclinnovations.stack.clients.core.EndpointNames;
+import com.cmclinnovations.stack.services.OntopService;
+import com.cmclinnovations.stack.services.ServiceManager;
+import com.cmclinnovations.stack.services.config.ServiceConfig;
+import com.cmclinnovations.stack.clients.ontop.OntopClient;
+
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
+import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
 
 /**
  * This class creates one column per data type, using the string given via
@@ -99,12 +110,21 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private static final Field<Integer> DATA_INDEX_COLUMN = DSL.field(DSL.name("id"),
             SQLDataType.INTEGER.identity(true));
 
+    private static final Field<String> UNIT_COLUMN = DSL.field(DSL.name("unit"), String.class);
+
     // Error message
     private static final String SQL_ERROR = "Error while executing SQL command";
     // Exception prefix
     private final String exceptionPrefix = this.getClass().getSimpleName() + ": ";
 
     private Class<T> timeClass;
+
+    // IRI of temporal reference system, used in ontop mapping to indicate reference
+    // of time, e.g. Unix
+    private String trsIri = null;
+
+    // name of ontop container
+    private String ontopName = "ontop-timeseries";
 
     /**
      * Standard constructor
@@ -142,6 +162,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
             throw new JPSRuntimeException("Unsupported time class: " + timeClass.getSimpleName());
         }
         this.timeClass = timeClass;
+    }
+
+    public void setTrs(String trsIri) {
+        this.trsIri = trsIri;
+    }
+
+    public void setOntopName(String ontopName) {
+        this.ontopName = ontopName;
     }
 
     @Override
@@ -200,6 +228,9 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
             initDataTypesIfNotExist(flatClasses, srid, conn);
             updateDataIriTable(flatDataIRIs, flatClasses, srid, conn);
 
+            // spin up a new ontop container if it does not exist
+            configureOntop();
+
             // returning empty list because it is not really applicable to this class
             return new ArrayList<>();
         } catch (Exception e) {
@@ -227,6 +258,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         Map<String, List<?>> dataToValueListMap = new HashMap<>();
         Map<String, List<T>> dataToTimeListMap = new HashMap<>();
+        Map<String, String> dataToUnitMap = new HashMap<>();
 
         tsList.forEach(ts -> {
             List<String> dataIriList = ts.getDataIRIs();
@@ -234,6 +266,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
             dataIriList.forEach(dataIri -> {
                 dataToValueListMap.put(dataIri, ts.getValues(dataIri));
                 dataToTimeListMap.put(dataIri, ts.getTimes());
+                dataToUnitMap.put(dataIri, ts.getUnit(dataIri));
             });
         });
 
@@ -245,15 +278,15 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
             // special case, both time columns are used
             if (timeClass == Instant.class) {
-                InsertValuesStep4<Record, T, Double, Integer, Object> insertStep = context
+                InsertValuesStep5<Record, T, Double, Integer, Object, String> insertStep = context
                         .insertInto(getDSLTable(TS_DATA_TABLE)).columns(timeColumn, (Field<Double>) theOtherTimeColumn,
-                                DATA_IRI_INDEX_COLUMN,
-                                DSL.field(DSL.name(column)));
+                                DATA_IRI_INDEX_COLUMN, DSL.field(DSL.name(column)), UNIT_COLUMN);
                 int numRows = 0;
                 for (String dataIri : dataIriList) {
                     List<T> timeList = dataToTimeListMap.get(dataIri);
                     List<?> valueList = dataToValueListMap.get(dataIri);
                     int dataIndex = dataColumnMetadata.getIndex(dataIri);
+                    String unit = dataToUnitMap.get(dataIri);
 
                     for (int i = 0; i < timeList.size(); i++) {
                         if (timeList.get(i) == null) {
@@ -263,7 +296,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
                         double millisecondsAsDouble = ((Instant) timeList.get(i)).toEpochMilli();
                         insertStep = insertStep.values(timeList.get(i), millisecondsAsDouble / 1000, dataIndex,
-                                valueList.get(i));
+                                valueList.get(i), unit);
                         numRows += 1;
                     }
                 }
@@ -741,7 +774,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         DSLContext context = DSL.using(conn, DIALECT);
 
         CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
-                .column(DATA_INDEX_COLUMN).column(timeColumn).column(theOtherTimeColumn).column(DATA_IRI_INDEX_COLUMN);
+                .column(DATA_INDEX_COLUMN).column(timeColumn).column(theOtherTimeColumn).column(DATA_IRI_INDEX_COLUMN)
+                .column(UNIT_COLUMN);
 
         // add data columns
         int numGeomColumn = 0;
@@ -766,7 +800,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                 DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
                         .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
                         .onDeleteCascade(),
-                DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn));
+                DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn),
+                DSL.unique(DATA_IRI_INDEX_COLUMN, theOtherTimeColumn));
 
         // this is a hack to add geometry column
         String sql = constraintStep.toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
@@ -929,11 +964,72 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
+    private void configureOntop() {
+        String stackName = System.getenv("STACK_NAME");
+        if (stackName == null) {
+            LOGGER.warn("STACK_NAME not detected, skipping Ontop intialisation");
+            return;
+        }
+
+        ServiceManager serviceManager = new ServiceManager(false);
+
+        ServiceConfig newOntopServiceConfig = serviceManager.duplicateServiceConfig(EndpointNames.ONTOP, ontopName);
+        newOntopServiceConfig.setEnvironmentVariable(OntopService.ONTOP_DB_NAME, "postgres");
+
+        newOntopServiceConfig.getEndpoints()
+                .replaceAll((endpointName, connection) -> new com.cmclinnovations.stack.services.config.Connection(
+                        connection.getUrl(),
+                        connection.getUri(),
+                        URI.create(connection.getExternalPath().toString()
+                                .replace(EndpointNames.ONTOP, ontopName))));
+        serviceManager.initialiseService(stackName, ontopName);
+
+        OntopClient ontopClient = OntopClient.getInstance(ontopName);
+        String ontopUrl = ontopClient.readEndpointConfig().getUrl();
+
+        // check if mapping exists and only upload mapping if it does not exist
+        RemoteStoreClient remoteStoreClient = new RemoteStoreClient(ontopUrl);
+        String query = "SELECT * WHERE { ?x ?y ?z } LIMIT 1";
+        JSONArray queryResult = remoteStoreClient.executeQuery(query);
+
+        if (queryResult.isEmpty()) {
+            // create temporary file for ontop mapping
+            Path tempDir;
+            try {
+                tempDir = Files.createTempDirectory("timeseries_ontop_");
+            } catch (IOException e) {
+                throw new JPSRuntimeException("Failed to create temporary directory to save ontop file", e);
+            }
+
+            String obda = prepareMapping();
+
+            Path filePath = tempDir.resolve("ontop.obda");
+            try {
+                Files.write(filePath, obda.getBytes());
+            } catch (IOException e) {
+                throw new JPSRuntimeException("Failed to write ontop mapping into temporary folder", e);
+            }
+
+            // sends obda to container
+            ontopClient.updateOBDA(filePath);
+
+            // clean up
+            filePath.toFile().delete();
+            tempDir.toFile().delete();
+        }
+    }
+
+    /**
+     * set TRS in Ontop mapping
+     * 
+     * @return
+     */
     private String prepareMapping() {
         String unixTRS = "http://dbpedia.org/resource/Unix_time";
         String generic = "http://example.org/TRS_placeholder";
 
         String obdaTemplate;
+        // read template from resources folder
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("timeseries_ontop_template.obda")) {
             obdaTemplate = IOUtils.toString(is, StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -941,9 +1037,12 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
 
         if (timeClass == Instant.class) {
+            LOGGER.info("Time class is Instant, TRS is set to {}", unixTRS);
             obdaTemplate.replace("[TRS_REPLACE]", unixTRS);
-        } else {
+        } else if (trsIri == null) {
             obdaTemplate.replace("[TRS_REPLACE]", generic);
+        } else {
+            obdaTemplate.replace("[TRS_REPLACE]", trsIri);
         }
 
         return obdaTemplate;

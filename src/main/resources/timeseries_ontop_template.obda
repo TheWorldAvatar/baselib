@@ -12,16 +12,17 @@ target		timeseries:observation/{id} a timeseries:Observation ;
                 timeprefix:hasTime timeseries:time/{id} . 
             timeseries:time/{id} a timeprefix:Instant ;
                 timeprefix:inXSDDateTime {time_as_timestamp} ;
-                timeprefix:inTimePosition timeseries:timePosition/{id};    
+                timeprefix:inTimePosition timeseries:timePosition/{id}.
             timeseries:timePosition/{id} a timeprefix:TimePosition ;
                 timeprefix:numericPosition {time_as_number} ;
                 timeprefix:unitType timeprefix:unitSecond ;
-                timeprefix:hasTRS [TRS_REPLACE] .
-            timeseries:result/{id} timeseries:hasValue {"double precision"}, {wkt}^^geo:wktLiteral, {int}. 
-source		SELECT id, time_as_number, time_as_timestamp, data_iri_index, "double precision", ST_AsText("geometry(Point,4326)") as wkt, int FROM time_series_data
+                timeprefix:hasTRS <[TRS_REPLACE]> .
+            timeseries:result/{id} a timeseries:Result ; 
+                timeseries:hasValue {"double precision"}, {wkt}^^geo:wktLiteral, {int};
+                timeseries:hasUnit {unit} . 
+source		SELECT id, time_as_number, time_as_timestamp, data_iri_index, "double precision", ST_AsText("geometry(Point,4326)") AS wkt, int, unit FROM time_series_data
 
 mappingId	equivalent_iri
 target		<{data_iri}> obda:isCanonicalIRIOf timeseries:data/{data_iri_index} . 
 source		SELECT data_iri, data_iri_index from time_series_data_iri
 ]]
-
