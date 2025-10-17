@@ -990,7 +990,30 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         // check if mapping exists and only upload mapping if it does not exist
         RemoteStoreClient remoteStoreClient = new RemoteStoreClient(ontopUrl);
         String query = "SELECT * WHERE { ?x ?y ?z } LIMIT 1";
-        JSONArray queryResult = remoteStoreClient.executeQuery(query);
+
+        JSONArray queryResult = null;
+
+        // try to send a query to ontop, catch exceptions in case it is still
+        // initialising
+        int attempts = 0;
+        int maxAttempts = 5;
+        while (attempts < maxAttempts) {
+            try {
+                queryResult = remoteStoreClient.executeQuery(query);
+                break;
+            } catch (Exception e) {
+                attempts++;
+                try {
+                    Thread.sleep(10_000); // wait 10 seconds before retrying
+                } catch (Exception ie) {
+                    throw new JPSRuntimeException("Interrupted while retrying query to ontop", e);
+                }
+            }
+        }
+
+        if (queryResult == null) {
+            throw new JPSRuntimeException("Failed to execute query after " + maxAttempts + " attempts.");
+        }
 
         if (queryResult.isEmpty()) {
             // create temporary file for ontop mapping
@@ -1030,7 +1053,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         String obdaTemplate;
         // read template from resources folder
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("timeseries_ontop_template.obda")) {
+        try (InputStream is = TimeSeriesRDBClientOntop.class.getResourceAsStream("timeseries_ontop_template.obda")) {
             obdaTemplate = IOUtils.toString(is, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new JPSRuntimeException("Error while reading timeseries_ontop_template.obda", e);
@@ -1038,11 +1061,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         if (timeClass == Instant.class) {
             LOGGER.info("Time class is Instant, TRS is set to {}", unixTRS);
-            obdaTemplate.replace("[TRS_REPLACE]", unixTRS);
+            obdaTemplate = obdaTemplate.replace("[TRS_REPLACE]", unixTRS);
         } else if (trsIri == null) {
-            obdaTemplate.replace("[TRS_REPLACE]", generic);
+            obdaTemplate = obdaTemplate.replace("[TRS_REPLACE]", generic);
         } else {
-            obdaTemplate.replace("[TRS_REPLACE]", trsIri);
+            obdaTemplate = obdaTemplate.replace("[TRS_REPLACE]", trsIri);
         }
 
         return obdaTemplate;
