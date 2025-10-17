@@ -449,8 +449,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         try (Connection conn = getConnection()) {
             initTimeSeriesTable(dataIRI, dataClass, tsIRI, srid, conn);
         } catch (SQLException e) {
-            LOGGER.error(e.getMessage());
-            throw new JPSRuntimeException(e);
+            throw new JPSRuntimeException("Error in initTimeSeriesTable", e);
         }
     }
 
@@ -474,65 +473,101 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         try (Connection conn = getConnection()) {
             addTimeSeriesData(tsList, conn);
         } catch (SQLException e) {
-            String errmsg = exceptionPrefix + "Error while adding time series data";
-            LOGGER.error(errmsg);
-            LOGGER.error(e.getMessage());
-            throw new JPSRuntimeException(errmsg, e);
+            throw new JPSRuntimeException("Error while adding time series data", e);
         }
     }
 
     @Override
     public void deleteRows(String dataIRI, T lowerBound, T upperBound, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteRows'");
+        DSLContext context = DSL.using(conn);
+
+        context.deleteFrom(getDSLTable(TS_DATA_TABLE)).where(DATA_IRI_INDEX_COLUMN.eq(
+                DSL.select(DATA_IRI_INDEX_COLUMN)
+                        .from(getDSLTable(TS_DATA_IRI_TABLE).where(DATA_IRI_COLUMN.eq(dataIRI))))
+                .and(timeColumn.ge(lowerBound))
+                .and(timeColumn.le(upperBound))).execute();
     }
 
     @Override
     public void deleteRows(String dataIRI, T lowerBound, T upperBound) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteRows'");
+        try (Connection conn = getConnection()) {
+            deleteRows(dataIRI, lowerBound, upperBound, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error in deleteRows", e);
+        }
     }
 
     @Override
     public void deleteTimeSeries(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteTimeSeries'");
+        DSLContext context = DSL.using(conn, DIALECT);
+        context.deleteFrom(getDSLTable(TS_DATA_IRI_TABLE)).where(DATA_IRI_COLUMN.eq(dataIRI)).execute();
     }
 
     @Override
     public void deleteTimeSeries(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteTimeSeries'");
+        try (Connection conn = getConnection()) {
+            deleteTimeSeries(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while deleting time series", e);
+        }
     }
 
     @Override
     public void deleteEntireTimeSeries(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteEntireTimeSeries'");
+        deleteTimeSeries(dataIRI, conn);
     }
 
     @Override
     public void deleteEntireTimeSeries(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteEntireTimeSeries'");
+        deleteTimeSeries(dataIRI);
     }
 
     @Override
     public void deleteAll(Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteAll'");
+        DSLContext context = DSL.using(conn, DIALECT);
+        context.dropTable(getDSLTable(TS_DATA_TABLE)).execute();
+        context.dropTable(getDSLTable(TS_DATA_IRI_TABLE)).execute();
+        context.dropTable(getDSLTable(TS_DATA_TYPE_TABLE)).execute();
     }
 
     @Override
     public void deleteAll() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deleteAll'");
+        try (Connection conn = getConnection()) {
+            deleteAll(conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error in deleteAll", e);
+        }
     }
 
     @Override
-    public TimeSeries<T> getTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimeSeriesWithinBounds'");
+    public TimeSeries<T> getTimeSeriesWithinBounds(List<String> dataIriList, T lowerBound, T upperBound,
+            Connection conn) {
+        if (dataIriList.size() != 1) {
+            String errmsg = "Only one IRI can be provided for this class";
+            throw new JPSRuntimeException(errmsg);
+        }
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(dataIriList, conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        Field<Object> dataField = DSL.field(DSL.name(dataColumn));
+
+        DSLContext context = DSL.using(conn);
+        Result<Record2<Object, T>> queryResult = context.select(dataField, timeColumn).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex()).and(timeColumn.ge(lowerBound))
+                        .and(timeColumn.le(upperBound)))
+                .orderBy(timeColumn.asc()).fetch();
+
+        List<T> timeList = new ArrayList<>();
+        List<Object> valueList = new ArrayList<>();
+        for (Record row : queryResult) {
+            timeList.add(row.get(timeColumn));
+            valueList.add(row.get(dataField));
+        }
+
+        List<List<?>> valuesList = new ArrayList<>();
+        valuesList.add(valueList);
+
+        return new TimeSeries<>(timeList, Arrays.asList(dataIriList.get(0)), valuesList);
     }
 
     @Override
@@ -547,44 +582,87 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public TimeSeries<T> getLatestData(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLatestData'");
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(Arrays.asList(dataIRI), conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        Field<Object> dataField = DSL.field(DSL.name(dataColumn));
+
+        DSLContext context = DSL.using(conn);
+        Result<Record2<Object, T>> queryResult = context.select(dataField, timeColumn).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex()))
+                .orderBy(timeColumn.desc()).limit(1).fetch();
+
+        List<T> timeList = new ArrayList<>();
+        List<Object> valueList = new ArrayList<>();
+        for (Record row : queryResult) {
+            timeList.add(row.get(timeColumn));
+            valueList.add(row.get(dataField));
+        }
+        List<List<?>> valuesList = Arrays.asList(valueList);
+        return new TimeSeries<>(timeList, Arrays.asList(dataIRI), valuesList);
     }
 
     @Override
     public TimeSeries<T> getOldestData(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getOldestData'");
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(Arrays.asList(dataIRI), conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        Field<Object> dataField = DSL.field(DSL.name(dataColumn));
+
+        DSLContext context = DSL.using(conn);
+        Result<Record2<Object, T>> queryResult = context.select(dataField, timeColumn).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex()))
+                .orderBy(timeColumn.asc()).limit(1).fetch();
+
+        List<T> timeList = new ArrayList<>();
+        List<Object> valueList = new ArrayList<>();
+        for (Record row : queryResult) {
+            timeList.add(row.get(timeColumn));
+            valueList.add(row.get(dataField));
+        }
+        List<List<?>> valuesList = Arrays.asList(valueList);
+        return new TimeSeries<>(timeList, Arrays.asList(dataIRI), valuesList);
     }
 
     @Override
     public double getAverage(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getAverage'");
     }
 
     @Override
     public double getMaxValue(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getMaxValue'");
     }
 
     @Override
     public double getMinValue(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getMinValue'");
     }
 
     @Override
     public T getMaxTime(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMaxTime'");
+        DSLContext context = DSL.using(conn);
+
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+
+        return context.select(timeColumn)
+                .from(getDSLTable(TS_DATA_TABLE).as("a"))
+                .leftJoin(getDSLTable(TS_DATA_IRI_TABLE).as("b")).on(aliasedField1.eq(aliasedField2))
+                .where(DATA_IRI_COLUMN.eq(dataIRI)).orderBy(timeColumn.desc()).limit(1).fetch(timeColumn).get(0);
     }
 
     @Override
     public T getMinTime(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMinTime'");
+        DSLContext context = DSL.using(conn);
+
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+
+        return context.select(timeColumn)
+                .from(getDSLTable(TS_DATA_TABLE).as("a"))
+                .leftJoin(getDSLTable(TS_DATA_IRI_TABLE).as("b")).on(aliasedField1.eq(aliasedField2))
+                .where(DATA_IRI_COLUMN.eq(dataIRI)).orderBy(timeColumn.asc()).limit(1).fetch(timeColumn).get(0);
     }
 
     @Override
@@ -614,8 +692,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public TimeSeries<T> getTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimeSeriesWithinBounds'");
+        try (Connection conn = getConnection()) {
+            return getTimeSeriesWithinBounds(dataIRI, lowerBound, upperBound, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing getTimeSeriesWithinBounds", e);
+        }
     }
 
     @Override
@@ -623,65 +704,74 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         try (Connection conn = getConnection()) {
             return getTimeSeries(dataIRI, conn);
         } catch (SQLException e) {
-            String errmsg = exceptionPrefix + "Error while getting time series data";
-            LOGGER.error(errmsg);
-            LOGGER.error(e.getMessage());
-            throw new JPSRuntimeException(errmsg, e);
+            throw new JPSRuntimeException("Error while executing getTimeSeries", e);
         }
     }
 
     @Override
     public TimeSeries<T> getLatestData(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLatestData'");
+        try (Connection conn = getConnection()) {
+            return getLatestData(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing getLatestData", e);
+        }
     }
 
     @Override
     public TimeSeries<T> getOldestData(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getOldestData'");
+        try (Connection conn = getConnection()) {
+            return getOldestData(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing getOldestData", e);
+        }
     }
 
     @Override
     public double getAverage(String dataIRI) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getAverage'");
     }
 
     @Override
     public double getMaxValue(String dataIRI) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getMaxValue'");
     }
 
     @Override
     public double getMinValue(String dataIRI) {
-        // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getMinValue'");
     }
 
     @Override
     public T getMaxTime(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMaxTime'");
+        try (Connection conn = getConnection()) {
+            return getMaxTime(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing getMaxTime", e);
+        }
     }
 
     @Override
     public T getMinTime(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMinTime'");
+        try (Connection conn = getConnection()) {
+            return getMinTime(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing getMinTime", e);
+        }
     }
 
     @Override
     public boolean checkDataHasTimeSeries(String dataIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'checkDataHasTimeSeries'");
+        DSLContext context = DSL.using(conn, DIALECT);
+        return context.fetchExists(DSL.selectFrom(getDSLTable(TS_DATA_IRI_TABLE).where(DATA_IRI_COLUMN.eq(dataIRI))));
     }
 
     @Override
     public boolean checkDataHasTimeSeries(String dataIRI) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'checkDataHasTimeSeries'");
+        try (Connection conn = getConnection()) {
+            return checkDataHasTimeSeries(dataIRI, conn);
+        } catch (SQLException e) {
+            throw new JPSRuntimeException("Error while executing checkDataHasTimeSeries", e);
+        }
     }
 
     @Override
@@ -709,8 +799,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public boolean timeSeriesExists(String tsIRI, Connection conn) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'timeSeriesExists'");
+        throw new UnsupportedOperationException("'timeSeriesExists' is not applicable to this class");
     }
 
     @Override
