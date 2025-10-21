@@ -2,6 +2,7 @@ package uk.ac.cam.cares.jps.base.timeseries;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -70,7 +71,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     // However the ontop mapping will not include the extra classes
     private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Point.class,
             Integer.class);
-    private static final int PRECONFIGURED_SRID = 4326;
+    private static final Integer PRECONFIGURED_SRID = 4326;
 
     private static final List<Class<?>> TIMESTAMP_CLASSES = Arrays.asList(Instant.class, OffsetDateTime.class,
             ZonedDateTime.class, LocalDateTime.class);
@@ -609,7 +610,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
         Field<Object> dataField = DSL.field(DSL.name(dataColumn));
 
-        DSLContext context = DSL.using(conn);
+        DSLContext context = DSL.using(conn, DIALECT);
         Result<Record2<Object, T>> queryResult = context.select(dataField, timeColumn).from(getDSLTable(TS_DATA_TABLE))
                 .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex()))
                 .orderBy(timeColumn.asc()).limit(1).fetch();
@@ -626,17 +627,41 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public double getAverage(String dataIRI, Connection conn) {
-        throw new UnsupportedOperationException("Unimplemented method 'getAverage'");
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(Arrays.asList(dataIRI), conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        int dataIriIndex = dataColumnMetadata.getIndex(dataIRI);
+        Field<Double> dataField = DSL.field(DSL.name(dataColumn), Double.class);
+
+        DSLContext context = DSL.using(conn, DIALECT);
+        return context.select(DSL.avg(dataField)).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.eq(dataIriIndex)).fetchOneInto(Double.class);
     }
 
     @Override
     public double getMaxValue(String dataIRI, Connection conn) {
-        throw new UnsupportedOperationException("Unimplemented method 'getMaxValue'");
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(Arrays.asList(dataIRI), conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        int dataIriIndex = dataColumnMetadata.getIndex(dataIRI);
+        Field<Double> dataField = DSL.field(DSL.name(dataColumn), Double.class);
+
+        DSLContext context = DSL.using(conn, DIALECT);
+        return context.select(DSL.max(dataField)).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.eq(dataIriIndex)).fetchOneInto(Double.class);
     }
 
     @Override
     public double getMinValue(String dataIRI, Connection conn) {
-        throw new UnsupportedOperationException("Unimplemented method 'getMinValue'");
+        DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(Arrays.asList(dataIRI), conn);
+
+        String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
+        int dataIriIndex = dataColumnMetadata.getIndex(dataIRI);
+        Field<Double> dataField = DSL.field(DSL.name(dataColumn), Double.class);
+
+        DSLContext context = DSL.using(conn, DIALECT);
+        return (Double) context.select(DSL.min(dataField)).from(getDSLTable(TS_DATA_TABLE))
+                .where(DATA_IRI_INDEX_COLUMN.eq(dataIriIndex)).fetchOneInto(Double.class);
     }
 
     @Override
@@ -929,6 +954,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         LOGGER.warn("Initialising additional data types that will not be in the Ontop mapping");
 
+        if (classesToInit.contains(Point.class) && srid == null) {
+            LOGGER.warn(
+                    "Point class is provided and SRID is null, perhaps you forgot to specify the SRID as 4326? It is not going to be included in the Ontop mapping");
+        }
+
         // collect geometry classes that are initialised separately
         List<String> additionalGeomColumns = new ArrayList<>();
 
@@ -1053,7 +1083,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
-    private void configureOntop() {
+    public void configureOntop() {
         String stackName = System.getenv("STACK_NAME");
         if (stackName == null) {
             LOGGER.warn("STACK_NAME not detected, skipping Ontop intialisation");
