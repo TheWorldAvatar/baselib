@@ -424,12 +424,6 @@
             <artifactId>jersey-common</artifactId>
         </dependency>
 
-        <!-- for interacting with the stack -->
-        <dependency>
-            <groupId>com.cmclinnovations</groupId>
-            <artifactId>stack-clients</artifactId>
-            <version>1.53.0-68-listfilesfromjar-fails-with-in-filepath-SNAPSHOT</version>
-        </dependency>
     </dependencies>
 
 
