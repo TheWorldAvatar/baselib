@@ -1,5 +1,7 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import static org.jooq.impl.DSL.selectFrom;
+
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -11,10 +13,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 
-import org.jooq.*;
-import org.junit.*;
+import org.jooq.Condition;
+import org.jooq.DSLContext;
+import org.jooq.Record;
+import org.jooq.SQLDialect;
+import org.jooq.Table;
 import org.jooq.impl.DSL;
-import static org.jooq.impl.DSL.selectFrom;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
