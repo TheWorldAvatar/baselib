@@ -29,6 +29,7 @@ import java.util.stream.IntStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jooq.Condition;
 import org.jooq.CreateSchemaFinalStep;
 import org.jooq.CreateTableColumnStep;
 import org.jooq.CreateTableConstraintStep;
@@ -180,7 +181,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     @Override
     public String getSchema() {
-        return schema;
+        if (schema == null) {
+            return "public";
+        } else {
+            return schema;
+        }
     }
 
     @Override
@@ -552,11 +557,19 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         String dataColumn = dataColumnMetadata.getColumns().iterator().next(); // there should only be one value
         Field<Object> dataField = DSL.field(DSL.name(dataColumn));
 
+        Condition condition = DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex());
+
+        if (lowerBound != null) {
+            condition = condition.and(timeColumn.ge(lowerBound));
+        }
+
+        if (upperBound != null) {
+            condition = condition.and(timeColumn.le(upperBound));
+        }
+
         DSLContext context = DSL.using(conn);
         Result<Record2<Object, T>> queryResult = context.select(dataField, timeColumn).from(getDSLTable(TS_DATA_TABLE))
-                .where(DATA_IRI_INDEX_COLUMN.in(dataColumnMetadata.getAllIndex()).and(timeColumn.ge(lowerBound))
-                        .and(timeColumn.le(upperBound)))
-                .orderBy(timeColumn.asc()).fetch();
+                .where(condition).orderBy(timeColumn.asc()).fetch();
 
         List<T> timeList = new ArrayList<>();
         List<Object> valueList = new ArrayList<>();
@@ -819,7 +832,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public void addColumnsToExistingTimeSeries(List<String> dataIRIs, List<Class<?>> dataClasses, String tsIri,
             Integer srid, Connection conn) {
-        throw new UnsupportedOperationException("'addColumnsToExistingTimeSeries' is not applicable to this class");
+        initTimeSeriesTable(dataIRIs, dataClasses, tsIri, srid, conn);
     }
 
     @Override
