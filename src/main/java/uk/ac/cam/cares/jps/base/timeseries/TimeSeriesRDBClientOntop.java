@@ -23,8 +23,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.Condition;
 import org.jooq.CreateSchemaFinalStep;
-import org.jooq.CreateTableColumnStep;
-import org.jooq.CreateTableConstraintStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertValuesStep1;
@@ -825,18 +823,18 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     private void initDataTypeTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE)).column(DATA_TYPE_COLUMN)
+
+        context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE))
+                .column(DATA_TYPE_COLUMN)
                 .column(DATA_TYPE_INDEX_COLUMN_SERIAL)
-                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL)).execute();
+                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL))
+                .execute();
 
         // add preconfigured data types
-        InsertValuesStep1<Record, String> insertStep = context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE),
-                DATA_TYPE_COLUMN);
-
-        for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
-            insertStep = insertStep.values(getColumnName(clas, PRECONFIGURED_SRID));
-        }
-        insertStep.onConflictDoNothing().execute();
+        context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_COLUMN)
+                .values(PRECONFIGURED_DATA_CLASSES.stream().map(clas -> getColumnName(clas, PRECONFIGURED_SRID))
+                        .collect(Collectors.toList()))
+                .onConflictDoNothing().execute();
     }
 
     /**
@@ -847,8 +845,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      */
     private void initDataIriTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_IRI_TABLE))) {
-            createStep.column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN_SERIAL).column(DATA_TYPE_INDEX_COLUMN)
+        context.createTableIfNotExists(getDSLTable(TS_DATA_IRI_TABLE))
+                .column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN_SERIAL).column(DATA_TYPE_INDEX_COLUMN)
                 .constraints(
                         DSL.unique(DATA_IRI_COLUMN),
                         DSL.primaryKey(DATA_IRI_INDEX_COLUMN_SERIAL),
@@ -856,29 +854,24 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                                 .references(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_INDEX_COLUMN)
                                 .onDeleteCascade())
                 .execute();
-        }
 
         context.createIndexIfNotExists("ts_data_iri_table_data_type_idx")
                 .on(getDSLTable(TS_DATA_IRI_TABLE), DATA_TYPE_INDEX_COLUMN).execute();
     }
 
     private void initDataTableIfNotExists(Connection conn) {
-        // row id used for ontop
-        DSLContext context = DSL.using(conn, DIALECT);
-
-        CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
-                .column(DATA_INDEX_COLUMN).column(timeColumn).column(theOtherTimeColumn).column(DATA_IRI_INDEX_COLUMN)
-                .column(UNIT_COLUMN);
 
         // add data columns
+        List<Field<?>> columns = new ArrayList<>(
+                List.of(DATA_INDEX_COLUMN, timeColumn, theOtherTimeColumn, DATA_IRI_INDEX_COLUMN, UNIT_COLUMN));
         int numGeomColumn = 0;
         for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
             String columnName = getColumnName(clas, PRECONFIGURED_SRID);
             if (Geometry.class.isAssignableFrom(clas)) {
-                createStep = createStep.column(DSL.field(DSL.name(columnName)));
+                columns.add(DSL.field(DSL.name(columnName)));
                 numGeomColumn += 1;
             } else {
-                createStep = createStep.column(DSL.field(DSL.name(columnName), clas));
+                columns.add(DSL.field(DSL.name(columnName), clas));
             }
         }
 
@@ -887,17 +880,20 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                     "Make sure to modify the create table query accordingly after modifying PRECONFIGURED_DATA_CLASSES");
         }
 
-        // add constraints and execute
-        CreateTableConstraintStep constraintStep = createStep.constraints(
+        // row id used for ontop
+        DSLContext context = DSL.using(conn, DIALECT);
+
+        String sql = context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
+                .columns(columns)
+                .constraints(
                         DSL.primaryKey(DATA_INDEX_COLUMN),
                         DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
                                 .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
                                 .onDeleteCascade(),
                         DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn),
-                DSL.unique(DATA_IRI_INDEX_COLUMN, theOtherTimeColumn));
-
+                        DSL.unique(DATA_IRI_INDEX_COLUMN, theOtherTimeColumn))
                 // this is a hack to add geometry column
-        String sql = constraintStep.toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
+                .toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
 
         // submit query manually
         try (Statement statement = conn.createStatement()) {
