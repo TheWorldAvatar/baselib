@@ -85,12 +85,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private static final Field<String> DATA_IRI_COLUMN = DSL.field(DSL.name("data_iri"), String.class);
     private static final Field<String> DATA_TYPE_COLUMN = DSL.field(DSL.name("data_type"), String.class);
 
-    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN = DSL.field(DSL.name("data_type_index"), Integer.class);
-    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN_SERIAL = DSL.field(DSL.name("data_type_index"),
+    private static final String DATA_TYPE_INDEX = "data_type_index";
+    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN = DSL.field(DSL.name(DATA_TYPE_INDEX), Integer.class);
+    private static final Field<Integer> DATA_TYPE_INDEX_COLUMN_SERIAL = DSL.field(DSL.name(DATA_TYPE_INDEX),
             SQLDataType.INTEGER.identity(true));// makes the value increment automatically
 
-    private static final Field<Integer> DATA_IRI_INDEX_COLUMN = DSL.field(DSL.name("data_iri_index"), Integer.class);
-    private static final Field<Integer> DATA_IRI_INDEX_COLUMN_SERIAL = DSL.field(DSL.name("data_iri_index"),
+    private static final String DATA_IRI_INDEX = "data_iri_index";
+    private static final Field<Integer> DATA_IRI_INDEX_COLUMN = DSL.field(DSL.name(DATA_IRI_INDEX), Integer.class);
+    private static final Field<Integer> DATA_IRI_INDEX_COLUMN_SERIAL = DSL.field(DSL.name(DATA_IRI_INDEX),
             SQLDataType.INTEGER.identity(true));
 
     private static final Field<Integer> DATA_INDEX_COLUMN = DSL.field(DSL.name("id"),
@@ -165,10 +167,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public List<Integer> bulkInitTimeSeriesTable(List<List<String>> dataIRIs, List<List<Class<?>>> dataClasses,
             List<String> tsIRIs, Integer srid, Connection conn) {
-        if (tsIRIs != null) {
-            if (!tsIRIs.isEmpty()) {
-                LOGGER.warn("Time series IRIs will be ignored for this RDB client class");
-            }
+        if (tsIRIs != null && !tsIRIs.isEmpty()) {
+            LOGGER.warn("Time series IRIs will be ignored for this RDB client class");
         }
         try {
             if (schema != null) {
@@ -334,8 +334,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private DataColumnMetadata getDataColumnMetadata(List<String> dataIriList, Connection conn) {
         DSLContext context = DSL.using(conn);
 
-        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_type_index"), SQLDataType.INTEGER.identity(true));
-        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_type_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", DATA_TYPE_INDEX), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", DATA_TYPE_INDEX), SQLDataType.INTEGER.identity(true));
 
         Result<Record3<String, String, Integer>> queryResult = context
                 .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_IRI_INDEX_COLUMN)
@@ -639,7 +639,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         Field<Double> dataField = DSL.field(DSL.name(dataColumn), Double.class);
 
         DSLContext context = DSL.using(conn, DIALECT);
-        return (Double) context.select(DSL.min(dataField)).from(getDSLTable(TS_DATA_TABLE))
+        return context.select(DSL.min(dataField)).from(getDSLTable(TS_DATA_TABLE))
                 .where(DATA_IRI_INDEX_COLUMN.eq(dataIriIndex)).fetchOneInto(Double.class);
     }
 
@@ -647,8 +647,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     public T getMaxTime(String dataIRI, Connection conn) {
         DSLContext context = DSL.using(conn);
 
-        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_iri_index"), SQLDataType.INTEGER.identity(true));
-        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", DATA_IRI_INDEX), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", DATA_IRI_INDEX), SQLDataType.INTEGER.identity(true));
 
         return context.select(timeColumn)
                 .from(getDSLTable(TS_DATA_TABLE).as("a"))
@@ -660,8 +660,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     public T getMinTime(String dataIRI, Connection conn) {
         DSLContext context = DSL.using(conn);
 
-        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", "data_iri_index"), SQLDataType.INTEGER.identity(true));
-        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", "data_iri_index"), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField1 = DSL.field(DSL.name("a", DATA_IRI_INDEX), SQLDataType.INTEGER.identity(true));
+        Field<Integer> aliasedField2 = DSL.field(DSL.name("b", DATA_IRI_INDEX), SQLDataType.INTEGER.identity(true));
 
         return context.select(timeColumn)
                 .from(getDSLTable(TS_DATA_TABLE).as("a"))
@@ -849,13 +849,13 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         DSLContext context = DSL.using(conn, DIALECT);
         try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(TS_DATA_IRI_TABLE))) {
             createStep.column(DATA_IRI_COLUMN).column(DATA_IRI_INDEX_COLUMN_SERIAL).column(DATA_TYPE_INDEX_COLUMN)
-                    .constraints(
-                            DSL.unique(DATA_IRI_COLUMN),
-                            DSL.primaryKey(DATA_IRI_INDEX_COLUMN_SERIAL),
-                            DSL.foreignKey(DATA_TYPE_INDEX_COLUMN)
-                                    .references(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_INDEX_COLUMN)
-                                    .onDeleteCascade())
-                    .execute();
+                .constraints(
+                        DSL.unique(DATA_IRI_COLUMN),
+                        DSL.primaryKey(DATA_IRI_INDEX_COLUMN_SERIAL),
+                        DSL.foreignKey(DATA_TYPE_INDEX_COLUMN)
+                                .references(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_INDEX_COLUMN)
+                                .onDeleteCascade())
+                .execute();
         }
 
         context.createIndexIfNotExists("ts_data_iri_table_data_type_idx")
@@ -889,14 +889,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         // add constraints and execute
         CreateTableConstraintStep constraintStep = createStep.constraints(
-                DSL.primaryKey(DATA_INDEX_COLUMN),
-                DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
-                        .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
-                        .onDeleteCascade(),
-                DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn),
+                        DSL.primaryKey(DATA_INDEX_COLUMN),
+                        DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
+                                .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
+                                .onDeleteCascade(),
+                        DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn),
                 DSL.unique(DATA_IRI_INDEX_COLUMN, theOtherTimeColumn));
 
-        // this is a hack to add geometry column
+                // this is a hack to add geometry column
         String sql = constraintStep.toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
 
         // submit query manually
@@ -1024,8 +1024,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
                 .from(getDSLTable(TS_DATA_TYPE_TABLE)).where(DATA_TYPE_COLUMN.in(columnNames)).fetch();
 
         Map<String, Integer> dataTypeToIndexMap = new HashMap<>();
-        for (Record2<String, Integer> record : queryResult) {
-            dataTypeToIndexMap.put(record.get(DATA_TYPE_COLUMN), record.get(DATA_TYPE_INDEX_COLUMN));
+        for (Record2<String, Integer> row : queryResult) {
+            dataTypeToIndexMap.put(row.get(DATA_TYPE_COLUMN), row.get(DATA_TYPE_INDEX_COLUMN));
         }
 
         InsertValuesStep2<Record, String, Integer> insertStep = context.insertInto(getDSLTable(TS_DATA_IRI_TABLE),
