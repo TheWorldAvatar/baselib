@@ -823,18 +823,18 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     private void initDataTypeTableIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-
-        context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE))
-                .column(DATA_TYPE_COLUMN)
+        context.createTableIfNotExists(getDSLTable(TS_DATA_TYPE_TABLE)).column(DATA_TYPE_COLUMN)
                 .column(DATA_TYPE_INDEX_COLUMN_SERIAL)
-                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL))
-                .execute();
+                .constraints(DSL.unique(DATA_TYPE_COLUMN), DSL.primaryKey(DATA_TYPE_INDEX_COLUMN_SERIAL)).execute();
 
         // add preconfigured data types
-        context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE), DATA_TYPE_COLUMN)
-                .values(PRECONFIGURED_DATA_CLASSES.stream().map(clas -> getColumnName(clas, PRECONFIGURED_SRID))
-                        .collect(Collectors.toList()))
-                .onConflictDoNothing().execute();
+        InsertValuesStep1<Record, String> insertStep = context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE),
+                DATA_TYPE_COLUMN);
+
+        for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
+            insertStep = insertStep.values(getColumnName(clas, PRECONFIGURED_SRID));
+        }
+        insertStep.onConflictDoNothing().execute();
     }
 
     /**
@@ -863,7 +863,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         // add data columns
         List<Field<?>> columns = new ArrayList<>(
-                List.of(DATA_INDEX_COLUMN, timeColumn, theOtherTimeColumn, DATA_IRI_INDEX_COLUMN, UNIT_COLUMN));
+                Arrays.asList(DATA_INDEX_COLUMN, timeColumn, theOtherTimeColumn, DATA_IRI_INDEX_COLUMN, UNIT_COLUMN));
         int numGeomColumn = 0;
         for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
             String columnName = getColumnName(clas, PRECONFIGURED_SRID);
@@ -917,7 +917,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         // check if there is any class that is outside of the preconfigured classes
         List<Class<?>> classesToInit = new ArrayList<>();
         classSet.forEach(c -> {
-            if ((Geometry.class.isAssignableFrom(c) && srid != PRECONFIGURED_SRID)
+            if ((Geometry.class.isAssignableFrom(c) && !srid.equals(PRECONFIGURED_SRID))
                     || !PRECONFIGURED_DATA_CLASSES.contains(c)) {
                 classesToInit.add(c);
             }
