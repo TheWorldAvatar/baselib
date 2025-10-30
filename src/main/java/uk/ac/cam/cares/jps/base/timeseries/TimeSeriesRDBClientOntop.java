@@ -982,13 +982,23 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         for (int i = 0; i < geometryColumns.size(); i++) {
             // type and column name are the same
-            sb.append(String.format("ADD \"%s\" %s", geometryColumns.get(i), geometryColumns.get(i)));
+            sb.append(String.format("ADD COLUMN IF NOT EXISTS \"%s\" %s", geometryColumns.get(i),
+                    geometryColumns.get(i)));
 
             if (i != geometryColumns.size() - 1) {
                 sb.append(", ");
+                sb.append(System.lineSeparator());
             } else {
                 sb.append(";");
+                sb.append(System.lineSeparator());
             }
+        }
+
+        for (int i = 0; i < geometryColumns.size(); i++) {
+            String indexName = geometryColumns.get(i).replace("(", "").replace(")", "").replace(",", "").toLowerCase();
+            sb.append(String.format("CREATE INDEX IF NOT EXISTS %s on %s USING GIST(\"%s\");", indexName,
+                    getDSLTable(TS_DATA_TABLE).toString(), geometryColumns.get(i)));
+            sb.append(System.lineSeparator());
         }
 
         String sql = sb.toString();
