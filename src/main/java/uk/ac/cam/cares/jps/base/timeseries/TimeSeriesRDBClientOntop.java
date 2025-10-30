@@ -226,6 +226,10 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         // perform a query to obtain column types associated with data to add
         DataColumnMetadata dataColumnMetadata = getDataColumnMetadata(dataIriFlatList, conn);
 
+        if (dataColumnMetadata.getColumns().isEmpty()) {
+            throw new JPSRuntimeException(exceptionPrefix + "Provided data IRI does not exist. " + dataIriFlatList);
+        }
+
         Map<String, List<?>> dataToValueListMap = new HashMap<>();
         Map<String, List<T>> dataToTimeListMap = new HashMap<>();
         Map<String, String> dataToUnitMap = new HashMap<>();
