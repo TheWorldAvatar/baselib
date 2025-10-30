@@ -52,8 +52,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     // mapping if the provided classes do not fall within these classes checks will
     // be made against the database to make the necessary initialisation
     // However the ontop mapping will not include the extra classes
-    private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Point.class,
-            Integer.class);
+    private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Integer.class);
+    private static final List<Class<?>> PRECONFIGURED_GEOMETRY_CLASSES = Arrays.asList(Point.class);
     private static final Integer PRECONFIGURED_SRID = 4326;
 
     private static final List<Class<?>> TIMESTAMP_CLASSES = Arrays.asList(Instant.class, OffsetDateTime.class,
@@ -831,7 +831,11 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         InsertValuesStep1<Record, String> insertStep = context.insertInto(getDSLTable(TS_DATA_TYPE_TABLE),
                 DATA_TYPE_COLUMN);
 
-        for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
+        List<Class<?>> preconfiguredClasses = new ArrayList<>();
+        preconfiguredClasses.addAll(PRECONFIGURED_DATA_CLASSES);
+        preconfiguredClasses.addAll(PRECONFIGURED_GEOMETRY_CLASSES);
+
+        for (Class<?> clas : preconfiguredClasses) {
             insertStep = insertStep.values(getColumnName(clas, PRECONFIGURED_SRID));
         }
         insertStep.onConflictDoNothing().execute();
@@ -864,44 +868,27 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         // add data columns
         List<Field<?>> columns = new ArrayList<>(
                 Arrays.asList(DATA_INDEX_COLUMN, timeColumn, theOtherTimeColumn, DATA_IRI_INDEX_COLUMN, UNIT_COLUMN));
-        int numGeomColumn = 0;
         for (Class<?> clas : PRECONFIGURED_DATA_CLASSES) {
-            String columnName = getColumnName(clas, PRECONFIGURED_SRID);
-            if (Geometry.class.isAssignableFrom(clas)) {
-                columns.add(DSL.field(DSL.name(columnName)));
-                numGeomColumn += 1;
-            } else {
-                columns.add(DSL.field(DSL.name(columnName), clas));
-            }
-        }
-
-        if (numGeomColumn > 1) {
-            throw new JPSRuntimeException(
-                    "Make sure to modify the create table query accordingly after modifying PRECONFIGURED_DATA_CLASSES");
+            columns.add(DSL.field(DSL.name(getColumnName(clas, PRECONFIGURED_SRID)), clas));
         }
 
         // row id used for ontop
         DSLContext context = DSL.using(conn, DIALECT);
 
-        String sql = context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
-                .columns(columns)
-                .constraints(
+        context.createTableIfNotExists(getDSLTable(TS_DATA_TABLE))
+                .columns(columns).constraints(
                         DSL.primaryKey(DATA_INDEX_COLUMN),
                         DSL.foreignKey(DATA_IRI_INDEX_COLUMN)
                                 .references(getDSLTable(TS_DATA_IRI_TABLE), DATA_IRI_INDEX_COLUMN)
                                 .onDeleteCascade(),
                         DSL.unique(DATA_IRI_INDEX_COLUMN, timeColumn),
                         DSL.unique(DATA_IRI_INDEX_COLUMN, theOtherTimeColumn))
-                // this is a hack to add geometry column
-                .toString().replace("any", getColumnName(Point.class, PRECONFIGURED_SRID));
+                .execute();
 
-        // submit query manually
-        try (Statement statement = conn.createStatement()) {
-            statement.execute(sql);
-        } catch (SQLException e) {
-            String errmsg = exceptionPrefix + "Error while creating time series data table";
-            throw new JPSRuntimeException(errmsg, e);
-        }
+        // geometry columns need to be added separately due to jooq's restrictions
+        List<String> geometryColumns = PRECONFIGURED_GEOMETRY_CLASSES.stream()
+                .map(c -> getColumnName(c, PRECONFIGURED_SRID)).collect(Collectors.toList());
+        addGeometryColumns(geometryColumns, conn);
     }
 
     /**
@@ -912,7 +899,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
      * @param conn
      * @throws SQLException
      */
-    private void initDataTypesIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) throws SQLException {
+    private void initDataTypesIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) {
         Set<Class<?>> classSet = new HashSet<Class<?>>(classes);
         // check if there is any class that is outside of the preconfigured classes
         List<Class<?>> classesToInit = new ArrayList<>();
@@ -989,7 +976,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         }
     }
 
-    private void addGeometryColumns(List<String> geometryColumns, Connection conn) throws SQLException {
+    private void addGeometryColumns(List<String> geometryColumns, Connection conn) {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("ALTER TABLE %s ", getDSLTable(TS_DATA_TABLE).toString()));
 
@@ -1007,6 +994,9 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         String sql = sb.toString();
         try (PreparedStatement statement = conn.prepareStatement(sql)) {
             statement.executeUpdate();
+        } catch (SQLException e) {
+            String errmsg = "Error adding geometry columns";
+            throw new JPSRuntimeException(errmsg, e);
         }
     }
 
