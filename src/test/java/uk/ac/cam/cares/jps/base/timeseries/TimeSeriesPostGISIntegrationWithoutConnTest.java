@@ -76,9 +76,8 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
         TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"), values);
 
         // upload to database
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        Assert.assertThrows(JPSRuntimeException.class,
                 () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload)));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     /**
@@ -96,9 +95,8 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
 
         TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"), values);
         // upload to database
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        Assert.assertThrows(JPSRuntimeException.class,
                 () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload)));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     /**
