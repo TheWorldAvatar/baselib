@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,6 +33,7 @@ import org.jooq.Record2;
 import org.jooq.Record3;
 import org.jooq.Result;
 import org.jooq.Table;
+import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.jooq.impl.DefaultDataType;
 import org.jooq.impl.SQLDataType;
@@ -98,8 +98,6 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     private static final Field<String> UNIT_COLUMN = DSL.field(DSL.name("unit"), String.class);
 
-    // Error message
-    private static final String SQL_ERROR = "Error while executing SQL command";
     // Exception prefix
     private final String exceptionPrefix = this.getClass().getSimpleName() + ": ";
 
@@ -168,47 +166,38 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         if (tsIRIs != null && !tsIRIs.isEmpty()) {
             LOGGER.warn("Time series IRIs will be ignored for this RDB client class");
         }
-        try {
-            if (schema != null) {
-                initSchemaIfNotExists(conn);
-            }
-            initDataTypeTableIfNotExists(conn);
-            initDataIriTableIfNotExists(conn);
-
-            List<String> flatDataIRIs = dataIRIs.stream().flatMap(List::stream).collect(Collectors.toList());
-            List<Class<?>> flatClasses = dataClasses.stream().flatMap(List::stream).collect(Collectors.toList());
-
-            // Check if any data has already been initialised (i.e. is associated with
-            // different tsIRI)
-            String faultyDataIRI = checkAnyDataHasTimeSeries(flatDataIRIs, conn);
-            if (faultyDataIRI != null) {
-                String errmsg = exceptionPrefix + "<" + faultyDataIRI
-                        + "> already has an assigned time series instance";
-                LOGGER.error(errmsg);
-                throw new JPSRuntimeException(errmsg);
-            }
-
-            // Ensure that there is a class for each data IRI
-            for (int i = 0; i < dataIRIs.size(); i++) {
-                if (dataIRIs.get(i).size() != dataClasses.get(i).size()) {
-                    LOGGER.error("Length of dataClass is different from number of data IRIs");
-                    // Assume all data IRIs have failed at the moment
-                    return IntStream.range(0, dataIRIs.size()).boxed().collect(Collectors.toList());
-                }
-            }
-
-            initDataTableIfNotExists(conn);
-            initDataTypesIfNotExist(flatClasses, srid, conn);
-            updateDataIriTable(flatDataIRIs, flatClasses, srid, conn);
-
-            // returning empty list because it is not really applicable to this class
-            return new ArrayList<>();
-        } catch (Exception e) {
-            // Throw all exceptions incurred by jooq (i.e. by SQL interactions with
-            // database) as JPSRuntimeException with respective message
-            LOGGER.error(e.getMessage());
-            throw new JPSRuntimeException(SQL_ERROR, e);
+        if (schema != null) {
+            initSchemaIfNotExists(conn);
         }
+        initDataTypeTableIfNotExists(conn);
+        initDataIriTableIfNotExists(conn);
+
+        List<String> flatDataIRIs = dataIRIs.stream().flatMap(List::stream).collect(Collectors.toList());
+        List<Class<?>> flatClasses = dataClasses.stream().flatMap(List::stream).collect(Collectors.toList());
+
+        // Check if any data has already been initialised (i.e. is associated with
+        // different tsIRI)
+        String faultyDataIRI = checkAnyDataHasTimeSeries(flatDataIRIs, conn);
+        if (faultyDataIRI != null) {
+            String errmsg = exceptionPrefix + "<" + faultyDataIRI
+                    + "> already has an assigned time series instance";
+            LOGGER.error(errmsg);
+            throw new JPSRuntimeException(errmsg);
+        }
+
+        // Ensure that there is a class for each data IRI
+        for (int i = 0; i < dataIRIs.size(); i++) {
+            if (dataIRIs.get(i).size() != dataClasses.get(i).size()) {
+                throw new JPSRuntimeException("Length of dataClass is different from number of data IRIs");
+            }
+        }
+
+        initDataTableIfNotExists(conn);
+        initDataTypesIfNotExist(flatClasses, srid, conn);
+        updateDataIriTable(flatDataIRIs, flatClasses, srid, conn);
+
+        // returning empty list because it is not really applicable to this class
+        return new ArrayList<>();
     }
 
     @Override
@@ -339,11 +328,22 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         Field<Integer> aliasedField1 = DSL.field(DSL.name("a", DATA_TYPE_INDEX), SQLDataType.INTEGER.identity(true));
         Field<Integer> aliasedField2 = DSL.field(DSL.name("b", DATA_TYPE_INDEX), SQLDataType.INTEGER.identity(true));
 
-        Result<Record3<String, String, Integer>> queryResult = context
-                .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_IRI_INDEX_COLUMN)
-                .from(getDSLTable(TS_DATA_IRI_TABLE).as("a"))
-                .leftJoin(getDSLTable(TS_DATA_TYPE_TABLE).as("b")).on(aliasedField1.eq(aliasedField2))
-                .where(DATA_IRI_COLUMN.in(dataIriList)).fetch();
+        Result<Record3<String, String, Integer>> queryResult;
+        try {
+            queryResult = context
+                    .select(DATA_IRI_COLUMN, DATA_TYPE_COLUMN, DATA_IRI_INDEX_COLUMN)
+                    .from(getDSLTable(TS_DATA_IRI_TABLE).as("a"))
+                    .leftJoin(getDSLTable(TS_DATA_TYPE_TABLE).as("b")).on(aliasedField1.eq(aliasedField2))
+                    .where(DATA_IRI_COLUMN.in(dataIriList)).fetch();
+        } catch (DataAccessException e) {
+            String errmsg = "Time series tables have not been initialised";
+            throw new JPSRuntimeException(errmsg, e);
+        }
+
+        if (queryResult.isEmpty()) {
+            String errmsg = "Provided data IRI(s) does not exist yet: " + dataIriList;
+            throw new JPSRuntimeException(errmsg);
+        }
 
         DataColumnMetadata dataColumnMetadata = new DataColumnMetadata();
         for (Record3<String, String, Integer> row : queryResult) {
@@ -404,6 +404,15 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
             TimeSeries<T> timeseries = new TimeSeries<>(timeList, Arrays.asList(dataIri), valuesList);
             iriToTsMap.put(dataIri, timeseries);
         });
+
+        // create empty time series objects
+        if (queryResult.isEmpty()) {
+            dataIriList.forEach(d -> {
+                List<List<?>> valuesList = new ArrayList<>();
+                valuesList.add(new ArrayList<>());
+                iriToTsMap.put(d, new TimeSeries<>(new ArrayList<>(), Arrays.asList(d), valuesList));
+            });
+        }
 
         return iriToTsMap;
     }
@@ -474,7 +483,12 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public void deleteTimeSeries(String dataIRI, Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        context.deleteFrom(getDSLTable(TS_DATA_IRI_TABLE)).where(DATA_IRI_COLUMN.eq(dataIRI)).execute();
+        int deletedRows = context.deleteFrom(getDSLTable(TS_DATA_IRI_TABLE)).where(DATA_IRI_COLUMN.eq(dataIRI))
+                .execute();
+        if (deletedRows == 0) {
+            String errmsg = "<" + dataIRI + "> does not have an assigned time series instance";
+            throw new JPSRuntimeException(errmsg);
+        }
     }
 
     @Override
@@ -499,9 +513,9 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     @Override
     public void deleteAll(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        context.dropTable(getDSLTable(TS_DATA_TABLE)).execute();
-        context.dropTable(getDSLTable(TS_DATA_IRI_TABLE)).execute();
-        context.dropTable(getDSLTable(TS_DATA_TYPE_TABLE)).execute();
+        context.dropTableIfExists(getDSLTable(TS_DATA_TABLE)).execute();
+        context.dropTableIfExists(getDSLTable(TS_DATA_IRI_TABLE)).execute();
+        context.dropTableIfExists(getDSLTable(TS_DATA_TYPE_TABLE)).execute();
     }
 
     @Override
