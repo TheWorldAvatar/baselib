@@ -10,7 +10,7 @@
 
     <!-- Please refer to the Versioning page on TheWorldAvatar wiki for
     details on how version numbers should be selected -->
-    <version>1.49.0-54-time-series-for-ontop-SNAPSHOT</version>
+    <version>1.49.0</version>
 
     <!-- Project Properties -->
     <properties>
