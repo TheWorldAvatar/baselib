@@ -28,6 +28,7 @@ public class TimeSeriesClientFactory {
     private static final Variable rdbClientClassVar = SparqlBuilder.var("rdbClientClass");
     private static final Variable rdbUrlVar = SparqlBuilder.var("rdbUrl");
     private static final Variable schemaVar = SparqlBuilder.var("schema");
+    private static final Variable updateEndpointVar = SparqlBuilder.var("updateEndpoint");
 
     /**
      * Factory method to get a TimeSeriesClient with the appropriate time class and
@@ -120,7 +121,10 @@ public class TimeSeriesClientFactory {
 
         rdbClient.setSchema(firstResult.getString(schemaVar.getVarName()));
 
-        return new TimeSeriesClient<>(storeClient, rdbClient);
+        String updateEndpoint = firstResult.getString(updateEndpointVar.getVarName());
+        RemoteStoreClient storeClientWithUpdateEndpoint = new RemoteStoreClient(updateEndpoint, updateEndpoint);
+
+        return new TimeSeriesClient<>(storeClientWithUpdateEndpoint, rdbClient);
     }
 
     private TimeSeriesClientFactory() {
@@ -131,7 +135,7 @@ public class TimeSeriesClientFactory {
 
         final Variable timeSeriesVar = SparqlBuilder.var("timeSeries");
 
-        return Queries.SELECT(timeClassVar, rdbClientClassVar, rdbUrlVar, schemaVar)
+        return Queries.SELECT(timeClassVar, rdbClientClassVar, rdbUrlVar, schemaVar, updateEndpointVar)
                 .distinct()
                 .prefix(TimeSeriesSparql.PREFIX_ONTOLOGY)
                 .where(dataVar.has(TimeSeriesSparql.hasTimeSeries, timeSeriesVar),
@@ -139,6 +143,7 @@ public class TimeSeriesClientFactory {
                         timeSeriesVar.has(TimeSeriesSparql.HAS_RDB_CLIENT_CLASS, rdbClientClassVar),
                         timeSeriesVar.has(TimeSeriesSparql.hasRDB, rdbUrlVar),
                         timeSeriesVar.has(TimeSeriesSparql.HAS_SCHEMA, schemaVar),
+                        timeSeriesVar.has(TimeSeriesSparql.HAS_UPDATE_ENDPOINT, updateEndpointVar),
                         new ValuesPattern(dataVar, dataIriList.stream().map(Rdf::iri).collect(Collectors.toList())));
     }
 }

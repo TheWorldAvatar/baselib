@@ -74,6 +74,7 @@ public class TimeSeriesSparql {
     static final Iri HAS_RDB_CLIENT_CLASS = PREFIX_ONTOLOGY.iri("hasRDBClientClass");
     static final Iri HAS_TIME_CLASS = PREFIX_ONTOLOGY.iri("hasTimeClass");
     static final Iri HAS_SCHEMA = PREFIX_ONTOLOGY.iri("hasSchema");
+    static final Iri HAS_UPDATE_ENDPOINT = PREFIX_ONTOLOGY.iri("hasUpdateEndpoint");
 
     // Fields for class specific exceptions
     private final String exceptionPrefix = this.getClass().getSimpleName() + ": ";
@@ -445,7 +446,8 @@ public class TimeSeriesSparql {
         // relational database URL and classes used by TimeSeriesClientFactory
         modify.insert(
                 tsIRI.has(hasRDB, literalOf(dbURL)).andHas(HAS_RDB_CLIENT_CLASS, rdbClientClass.getCanonicalName())
-                        .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema));
+                        .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema)
+                        .andHas(HAS_UPDATE_ENDPOINT, kbClient.getUpdateEndpoint()));
 
         // link each data to time series
         for (String data : dataIRI) {
@@ -535,7 +537,8 @@ public class TimeSeriesSparql {
             // relational database URL and classes used by TimeSeriesClientFactory
             modify.and(
                     tsIRI.has(hasRDB, literalOf(rdbURL)).andHas(HAS_RDB_CLIENT_CLASS, rdbClientClass.getCanonicalName())
-                            .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema));
+                            .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema)
+                            .andHas(HAS_UPDATE_ENDPOINT, kbClient.getUpdateEndpoint()));
 
             // link each data to time series
             for (String data : timeSeriesKgMetadata.getDataIriList()) {
@@ -934,7 +937,8 @@ public class TimeSeriesSparql {
         // relational database URL and classes used by TimeSeriesClientFactory
         modify.insert(
                 tsIRI.has(hasRDB, literalOf(dbURL)).andHas(HAS_RDB_CLIENT_CLASS, rdbClientClass.getCanonicalName())
-                        .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema));
+                        .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema)
+                        .andHas(HAS_UPDATE_ENDPOINT, kbClient.getUpdateEndpoint()));
 
         // link each data to time series
         for (String data : timeSeriesKgMetadata.getDataIriList()) {
