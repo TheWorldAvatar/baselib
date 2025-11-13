@@ -920,10 +920,14 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     private void initDataTypesIfNotExist(List<Class<?>> classes, Integer srid, Connection conn) {
         Set<Class<?>> classSet = new HashSet<Class<?>>(classes);
         // check if there is any class that is outside of the preconfigured classes
+        List<Class<?>> preconfiguredClasses = new ArrayList<>();
+        preconfiguredClasses.addAll(PRECONFIGURED_DATA_CLASSES);
+        preconfiguredClasses.addAll(PRECONFIGURED_GEOMETRY_CLASSES);
+
         List<Class<?>> classesToInit = new ArrayList<>();
         classSet.forEach(c -> {
             if ((Geometry.class.isAssignableFrom(c) && !srid.equals(PRECONFIGURED_SRID))
-                    || !PRECONFIGURED_DATA_CLASSES.contains(c)) {
+                    || !preconfiguredClasses.contains(c)) {
                 classesToInit.add(c);
             }
         });
