@@ -4,6 +4,12 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
+registries:
+  maven-artifactory:
+    type: maven-repository
+    url: https://maven.pkg.github.com/TheWorldAvatar/*
+    username: token
+    password: ${{secrets.TWA_MAVEN_REPO_TOKEN}}
 updates:
   - package-ecosystem: "maven" # See documentation for possible values
     directory: "/" # Location of package manifests
