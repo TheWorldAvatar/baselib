@@ -233,6 +233,49 @@ The table storing the time series data contains an extra time series IRI column 
 
 Due to the way different time series share the same table, there may be a lot of table entries being null if the time series have different data types or number of data.
 
+### Instantiation in RDB using TimeSeriesRDBClientOntop
+
+Time series data are stored in the format that is suitable for Ontop, one column is assigned for data type, three data types are pre-initialised - `java.lang.Double`, `java.lang.Integer`, and `org.postgis.Point`. Any data types that are not within these classes will be added, but will not be available via Ontop. The time class should be either numeric (e.g. subclass of Number) or a time stamp type (e.g. Instant, OffsetDateTime, ZonedDateTime, LocalDateTime).
+
+This class is designed to be used via `com.cmclinnovations.stack.clients.timeseries.TimeSeriesRDBClient`, which includes functionalities to spin up a new Ontop container, otherwise it can still work but without the Ontop functionality.
+
+The ontop mapping is here - [timeseries_ontop_template.obda](https://github.com/TheWorldAvatar/stack/tree/main/stack-clients/src/main/resources/com/cmclinnovations/stack/clients/timeseries/timeseries_ontop_template.obda). Each data is a separate time series, unlike the other classes that allow multiple instances to share the same time column. If data are grouped together, they are simply ignored in this class. In the ontop mapping, there is a placeholder for TRS (temporal reference system). If the time class is `java.time.Instant`, it will be `http://dbpedia.org/resource/Unix_time`, otherwise a placeholder IRI is placed there if not specified. To specify a custom TRS, overwrite with  `com.cmclinnovations.stack.clients.timeseries.TimeSeriesRDBClient.setTrs`.
+
+Running any one of the methods to initialise time series will spin up a new Ontop container, the default name of the container is `ontop-timeseries`, to specify a custom name, overwrite with this method - `com.cmclinnovations.stack.clients.timeseries.TimeSeriesRDBClient.setOntopName`.
+
+This client creates 3 tables:
+
+1. time_series_data_type - lookup table for data type, used by the client to determine which column to add the provided data to.
+
+| data_type | data_type_index |
+| :---: | :---: |
+|double precision    | 1 |
+|geometry(Point,4326)| 2 |
+|int                 | 3 |
+
+2. time_series_data_iri - lookup table for data IRI, data_type_index is a foreign key that references time_series_data_type.
+
+| data_iri | data_iri_index | data_type_index |
+| :---: | :---: | :---: |
+|http://data1    | 1 | 1 |
+|http://data2    | 2 | 1 |
+|http://data3    | 3 | 1 |
+
+3. time_series_data - table storing the data, data_iri_index is a foreign key that references time_series_data_iri.
+
+| id | time_as_timestamp | time_as_number | data_iri_index | unit | double precision | geometry(Point,4326) | int |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 1 | 2025-10-17 06:14:54+00 | 1760681694| 1 | '-' | NULL | NULL | 1 |
+
+There are two time columns - `time_as_timestamp` and `time_as_number`, the column used will depend on the time class provided to the client.
+
+| time class | columns used |
+| :---: | :---: |
+|Instant | `time_as_timestamp` and `time_as_number` |
+|OffsetDateTime, ZonedDateTime, LocalDateTime    | `time_as_timestamp` |
+|Number (any subclass of Number, e.g. Double, Integer)  | `time_as_number` |
+
+
 ## Examples on how to use the TimeSeriesClient ##
 - **Integration tests**:
 Detailed integration tests for the `TimeSeriesClient` as well as the (underlying) `TimeSeriesRDBClient` and `TimeSeriesSparql` are provided in the respective [test repository]. Please note that all integration tests use the Testcontainers Java library and, hence, require Docker to be installed. Furthermore, access to the `docker.cmclinnovations.com registry` is required from the machine the test is run on to pull docker images.  

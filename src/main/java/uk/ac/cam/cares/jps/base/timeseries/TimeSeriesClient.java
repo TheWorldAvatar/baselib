@@ -1369,7 +1369,8 @@ public class TimeSeriesClient<T> {
                     exceptionPrefix + "one or more provided data IRI contains an existing time series");
         }
 
-        if (!rdbClient.timeSeriesExists(timeSeriesIri, conn)) {
+        // timeseries IRI check is not applicable to TimeSeriesRDBClientOntop
+        if (!(rdbClient instanceof TimeSeriesRDBClientOntop) && !rdbClient.timeSeriesExists(timeSeriesIri, conn)) {
             throw new JPSRuntimeException(
                     exceptionPrefix + "provided time series does not exist");
         }
