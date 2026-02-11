@@ -1,4 +1,4 @@
-import pkg_resources
+import importlib_resources
 import json
 import os
 import shutil
@@ -6,7 +6,7 @@ import keyword
 import builtins
 import textwrap
 
-_RES_DIR = pkg_resources.resource_filename(__name__, os.path.join('..','resources'))
+_RES_DIR = importlib_resources.files(__name__).joinpath('..','resources')
 _RES_REG_FILE = 'resources_registry.json'
 _DEF_RES_META_FILE = 'default_resources.json'
 _URL_ID = 'url://'
@@ -24,7 +24,9 @@ class resRegistry:
         Constructs the registry object. If regsitry file does not exists, it creates one on the fly.
         """
         try:
-            self.resReg = json.load(pkg_resources.resource_stream(__name__, os.path.join('..','resources',_RES_REG_FILE)))
+            resource_path = importlib_resources.files(__name__).joinpath('..', 'resources', _RES_REG_FILE)
+            with importlib_resources.open_text(__name__, resource_path) as resource_file:
+                self.resReg = json.load(resource_file)
         except FileNotFoundError:
             self.resReg = {'resources':{}}
             self._updateRegFile()

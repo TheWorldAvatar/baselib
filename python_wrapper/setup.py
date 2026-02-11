@@ -25,6 +25,7 @@ setup(
         'python-dotenv',
         'yagmail',
         'Werkzeug',
+        'importlib_resources>=5.10',
     ],
     include_package_data=True,
     entry_points={
