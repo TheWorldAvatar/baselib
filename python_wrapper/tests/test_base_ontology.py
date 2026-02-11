@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 import uuid
+import json
 from rdflib import Graph, URIRef, Literal, BNode
 from rdflib import OWL, RDF, RDFS, XSD
 from typing import ClassVar, ForwardRef, Optional
@@ -362,29 +363,52 @@ def test_pull_from_kg_force_overwrite_local(initialise_sparql_client, recwarn):
     c_local = 'c_local ' + str(uuid.uuid4())
     c.data_property_c.add(c_local)
 
-    # thirdly, pull the object from the KG which should raise exception
+    # thirdly, pull the object from the KG which should be fine as the modifications are not conflicting
+    # i.e. both are adding new data properties
+    new_c = C.pull_from_kg(c.instance_iri, sparql_client, -1)[0]
+    assert new_c.data_property_c == {c_remote, c_local}
+    # now push the object to the KG
+    new_c.push_to_kg(sparql_client, -1)
+
+    # fourthly, modify the remote triple by deleting the data property from c
+    # and add a new data property to c locally so that there will be an intention conflict
+    # i.e. the remote is removing a data property and the local wants to keep it
+    result = sparql_client.perform_query(f"""SELECT ?o WHERE {{<{c.instance_iri}> <{Data_Property_C.predicate_iri}> ?o.}}""")
+    assert len(result) == 2
+    assert {'o': c_remote} in result
+    assert {'o': c_local} in result
+    sparql_client.perform_update(f"""DELETE DATA {{<{c.instance_iri}> <{Data_Property_C.predicate_iri}> '{c_remote}'^^<http://www.w3.org/2001/XMLSchema#string>.}}""")
+    assert [{'o': c_local}] == sparql_client.perform_query(f"""SELECT ?o WHERE {{<{c.instance_iri}> <{Data_Property_C.predicate_iri}> ?o.}}""")
+    c.data_property_c.remove(c_local)
+    # this will raise exception when pull
     with pytest.raises(Exception) as e_info:
         new_c = C.pull_from_kg(c.instance_iri, sparql_client, -1)[0]
     assert KnowledgeGraph.iri_loading_in_progress == set()
     assert e_info.match(f"""The remote changes in knowledge graph conflicts with local changes""")
     assert e_info.match(f"""for {c.instance_iri} {Data_Property_C.predicate_iri}""")
-    assert e_info.match(f"""Objects appear in the remote but not in the local: {set([c_remote])}""")
-    assert e_info.match(f"""Triples appear in the local but not the remote: {set([c_local])}""")
-    assert e_info.match(f"""Triples cached in the local: {set()}""")
+    assert e_info.match(f"""Objects appear in the remote: {set([c_local])}""")
+    assert e_info.match(f"""Objects appear in the local: {set([c_remote])}""")
+    assert e_info.match(f"""Objects removed in the remote: {set([c_remote])}""")
+    assert e_info.match(f"""Objects removed in the local: {set([c_local])}""")
+    assert e_info.match(f"""Objects intended to be kept in the remote: {set([c_local])}""")
+    assert e_info.match(f"""Objects intended to be kept in the local: {set([c_remote])}""")
+    assert e_info.match(f"""Objects cached in the local: {set([c_local, c_remote])}""") or e_info.match(f"""Objects cached in the local: {set([c_remote, c_local])}""")
 
-    # fourthly, pull the object from the KG with force_overwrite_local set to True
+    # fifthly, pull the object from the KG with force_overwrite_local set to True
     # this should be executed without issue
     new_c = C.pull_from_kg(c.instance_iri, sparql_client, -1, True)[0]
     # warning messages should also be raised
+    for w in recwarn:
+        print(w.message)
     assert len(recwarn) == 1
     warning_message = str(recwarn[0].message)
     assert f"""The remote changes in knowledge graph conflicts with local changes""" in warning_message
     assert f"""for {c.instance_iri} {Data_Property_C.predicate_iri} but is now overwritten by the remote changes:""" in warning_message
-    assert f"""Objects appear in the remote but not in the local: {set([c_remote])}""" in warning_message
-    assert f"""Triples appear in the local but not the remote: {set([c_local])}""" in warning_message
-    assert f"""Triples cached in the local: {set()}""" in warning_message
+    assert f"""Objects appear in the remote: {set([c_local])}""" in warning_message
+    assert f"""Objects appeared in the local BUT ARE NOW OVERWRITTEN BY THE REMOTE VALUES: {set([c_remote])}""" in warning_message
+    assert f"""Objects cached in the local BUT ARE NOW OVERWRITTEN BY THE REMOTE VALUES: {set([c_local, c_remote])}""" in warning_message or f"""Objects cached in the local BUT ARE NOW OVERWRITTEN BY THE REMOTE VALUES: {set([c_remote, c_local])}. """ in warning_message
     # also the local values should be overwritten
-    assert new_c.data_property_c == {c_remote}
+    assert new_c.data_property_c == {c_local}
 
 
 def test_pull_all_instance_from_kg(initialise_sparql_client):
@@ -1107,7 +1131,69 @@ def test_instances_with_multiple_rdf_type(initialise_sparql_client, recwarn):
 
     # final check: all the warning messages when overiwritting the pulled object in the registry
     assert len(recwarn) == 2
+    for w in recwarn:
+        print(w.message)
     warning_message_1 = str(recwarn[0].message)
     assert f"""An object with the same IRI {e_para.instance_iri} has already been instantiated and registered with type {E_Sub}. Replacing its regiatration now with type {E_Para}.""" in warning_message_1
     warning_message_2 = str(recwarn[1].message)
     assert f"""An object with the same IRI {e_para.instance_iri} has already been instantiated and registered with type {E_Para}. Replacing its regiatration now with type {New_E_Super_Sub}.""" in warning_message_2
+
+
+def test_load_nested_json():
+    class TestJSONOntology(BaseOntology):
+        base_url = 'https://dummy.example/kg/'
+        namespace = 'example'
+        owl_versionInfo = '0.0.1'
+        rdfs_comment = 'An example ontology'
+
+    TestJSONOntology.set_dev_mode()
+
+    Has = ObjectProperty.create_from_base('Has', TestJSONOntology)
+
+    class I(BaseClass):
+        rdfs_isDefinedBy = TestJSONOntology
+        has: Optional[Has[I]] = set()
+
+    class I1(I):
+        pass
+
+    class I2(I):
+        pass
+
+    class I3(I):
+        pass
+
+    # Here we define the nested JSON to be loaded
+    i1_iri = f'https://dummy.example/kg/example/I1_{str(uuid.uuid4())}'
+    i2_iri = f'https://dummy.example/kg/example/I2_{str(uuid.uuid4())}'
+    i3_iri = f'https://dummy.example/kg/example/I3_{str(uuid.uuid4())}'
+    json_data = {
+        'instance_iri': i1_iri,
+        'has': [
+            {
+            'instance_iri': i2_iri,
+            'has': [
+                {
+                'instance_iri': i3_iri,
+                'has': []
+                }
+            ]
+            },
+            {
+            'instance_iri': i3_iri,
+            'has': []
+            }
+        ]
+    }
+
+    # Load the JSON data into the class
+    ogm_loaded_i1 = I1.model_validate_json(json.dumps(json_data))
+
+    # Now we can check the loaded data
+    assert ogm_loaded_i1.has == {i2_iri, i3_iri}
+    ogm_loaded_i2 = KnowledgeGraph.get_object_from_lookup(i2_iri)
+    assert ogm_loaded_i2.has == {i3_iri}
+    ogm_loaded_i3 = KnowledgeGraph.get_object_from_lookup(i3_iri)
+    assert ogm_loaded_i3.has == set()
+    # NOTE importantly, we need to check the id of the i3 pointed by i2 has the same id as the one in the loaded i3
+    assert id(ogm_loaded_i3) == id(list(ogm_loaded_i2.has)[0])

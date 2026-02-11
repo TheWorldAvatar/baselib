@@ -20,6 +20,8 @@ public class TBoxConfiguration {
 	
 	private String tBoxVersion;	
 	
+	private String tBoxLicence;
+	
 	private String tBoxComment;
 
 	@Value("${tbox.compchem.git.commit.hash}")
@@ -95,6 +97,14 @@ public class TBoxConfiguration {
 
 	public void settBoxIri(String tBoxIri) {
 		this.tBoxIri = tBoxIri;
+	}
+
+	public String gettBoxLicence() {
+		return tBoxLicence;
+	}
+
+	public void settBoxLicence(String tBoxLicence) {
+		this.tBoxLicence = tBoxLicence;
 	}
 
 	public String gettBoxVersion() {

@@ -1,4 +1,62 @@
-target
-output
+# Useful links for more information about ignoring files:
+# https://git-scm.com/docs/gitignore
+# https://github.com/github/gitignore
+# https://www.toptal.com/developers/gitignore
 
-*/log4j2.xml
+# Binary archives of any kind are not allowed:
+*.tar
+*.gz
+*.zip
+*.7z
+*.rar
+*.tgz
+*.hdt
+*.mod
+
+# Log files and databases are not allowed:
+*.log
+database.sqlite
+keys.json
+
+# Integrated Development Environment (IDE)-specific files/folders:
+.idea/
+.settings/
+.metadata
+.classpath
+.project
+.factorypath
+*.iml
+
+# Java:
+*.jar
+*.war
+*.class
+log4j2.xml
+catalog-v001.xml
+
+# Maven:
+target/
+output/
+
+# Python:
+__pycache__/
+site-packages/
+*.py[cod]
+*$py.class
+*.pkl
+*.egg-info/
+.venv
+*venv/
+.env
+*env/
+
+# Compiled/binary output folders:
+bin/
+build/
+dist/
+
+# Mac/OSX-specific files:
+.DS_Store
+
+# Windows-specific files:
+Thumbs.db

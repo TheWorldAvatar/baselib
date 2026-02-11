@@ -30,8 +30,8 @@ theme:
   logo: './media/twa-logo-white.svg'
   favicon: './media/twa-logo-blue.svg'
 
-repo_name: cambridge-cares/TheWorldAvatar
-repo_url: https://github.com/cambridge-cares/TheWorldAvatar/tree/main/JPS_BASE_LIB/python_wrapper
+repo_name: TheWorldAvatar/baselib
+repo_url: https://github.com/TheWorldAvatar/tree/main/baselib/python_wrapper
 
 plugins:
   - mkdocstrings:

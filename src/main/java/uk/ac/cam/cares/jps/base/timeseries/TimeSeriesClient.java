@@ -619,6 +619,17 @@ public class TimeSeriesClient<T> {
     }
 
     /**
+     * Retrieve potentially multiple time series data history for given dataIRIs
+     * 
+     * @param dataIRIs list of data IRIs provided as string
+     * @param conn     connection to the RDB
+     * @return All data series from dataIRIs list as single TimeSeries object
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRIs, Connection conn) {
+        return rdbClient.bulkGetTimeSeries(dataIRIs, conn);
+    }
+
+    /**
      * Retrieve average value of an entire time series
      * 
      * @param dataIRI data IRI provided as string
@@ -1358,7 +1369,8 @@ public class TimeSeriesClient<T> {
                     exceptionPrefix + "one or more provided data IRI contains an existing time series");
         }
 
-        if (!rdbClient.timeSeriesExists(timeSeriesIri, conn)) {
+        // timeseries IRI check is not applicable to TimeSeriesRDBClientOntop
+        if (!(rdbClient instanceof TimeSeriesRDBClientOntop) && !rdbClient.timeSeriesExists(timeSeriesIri, conn)) {
             throw new JPSRuntimeException(
                     exceptionPrefix + "provided time series does not exist");
         }

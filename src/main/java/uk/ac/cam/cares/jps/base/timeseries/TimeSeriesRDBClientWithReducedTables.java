@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +28,7 @@ import org.jooq.InsertValuesStep4;
 import org.jooq.InsertValuesStepN;
 import org.jooq.Record;
 import org.jooq.Record2;
+import org.jooq.Record4;
 import org.jooq.Result;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
@@ -450,49 +453,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
             // (throws Exception if not)
             checkDataIsInSameTable(dataIRI, context);
 
-            // Retrieve table corresponding to the time series connected to the data IRIs
-            String tsIri = getTimeSeriesIRI(dataIRI.get(0), context);
-            String tsTableName = getTimeSeriesTableName(dataIRI.get(0), context);
-
-            // Create map between data IRI and the corresponding column field in the table
-            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
-            for (String data : dataIRI) {
-                String columnName = getColumnName(data, context);
-                Field<Object> field = DSL.field(DSL.name(columnName));
-                dataColumnFields.put(data, field);
-            }
-
-            // Retrieve list of column fields (including fixed time column)
-            List<Field<?>> columnList = new ArrayList<>();
-            columnList.add(timeColumn);
-            for (String data : dataIRI) {
-                columnList.add(dataColumnFields.get(data));
-            }
-
-            // Potentially update bounds (if no bounds were provided)
-            if (lowerBound == null) {
-                lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
-                        .get(0);
-            }
-            if (upperBound == null) {
-                upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
-                        .get(0);
-            }
-
-            // Perform query
-            Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
-                    .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.eq(tsIri)))
-                    .orderBy(timeColumn.asc()).fetch();
-
-            // Collect results and return a TimeSeries object
-            List<T> timeValues = queryResult.getValues(timeColumn);
-            List<List<?>> dataValues = new ArrayList<>();
-            for (String data : dataIRI) {
-                List<?> column = queryResult.getValues(dataColumnFields.get(data));
-                dataValues.add(column);
-            }
-
-            return new TimeSeries<>(timeValues, dataIRI, dataValues);
+            return queryTimeSeriesWithinBounds(dataIRI, lowerBound, upperBound, context);
 
         } catch (JPSRuntimeException e) {
             // Re-throw JPSRuntimeExceptions
@@ -515,6 +476,242 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
     @Override
     public TimeSeries<T> getTimeSeries(List<String> dataIRI, Connection conn) {
         return getTimeSeriesWithinBounds(dataIRI, null, null, conn);
+    }
+
+    private TimeSeries<T> queryTimeSeriesWithinBounds(List<String> dataIRI, T lowerBound, T upperBound,
+            DSLContext context) {
+        // Retrieve table corresponding to the time series connected to the data IRIs
+        String tsIri = getTimeSeriesIRI(dataIRI.get(0), context);
+        String tsTableName = getTimeSeriesTableName(dataIRI.get(0), context);
+
+        // Create map between data IRI and the corresponding column field in the table
+        Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+        for (String data : dataIRI) {
+            String columnName = getColumnName(data, context);
+            Field<Object> field = DSL.field(DSL.name(columnName));
+            dataColumnFields.put(data, field);
+        }
+
+        // Retrieve list of column fields (including fixed time column)
+        List<Field<?>> columnList = new ArrayList<>();
+        columnList.add(timeColumn);
+        for (String data : dataIRI) {
+            columnList.add(dataColumnFields.get(data));
+        }
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
+                    .get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
+                    .get(0);
+        }
+
+        // Perform query
+        Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
+                .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.eq(tsIri)))
+                .orderBy(timeColumn.asc()).fetch();
+
+        // Collect results and return a TimeSeries object
+        List<T> timeValues = queryResult.getValues(timeColumn);
+        List<List<?>> dataValues = new ArrayList<>();
+        for (String data : dataIRI) {
+            List<?> column = queryResult.getValues(dataColumnFields.get(data));
+            dataValues.add(column);
+        }
+
+        return new TimeSeries<>(timeValues, dataIRI, dataValues);
+    }
+
+    /**
+     * Retrieve multiple time series from RDB
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param conn    connection to the RDB
+     */
+    public Map<String, TimeSeries<T>> bulkGetTimeSeries(List<String> dataIRI, Connection conn) {
+
+        Map<String, TimeSeries<T>> timeSeriesDataMap = new HashMap<>();
+
+        // Initialise connection and set jOOQ DSL context
+        DSLContext context = DSL.using(conn, DIALECT);
+
+        // All database interactions in try-block to ensure closure of connection
+        try {
+
+            // Check if central database lookup table exists
+            if (!checkCentralTableExists(conn)) {
+                throw new JPSRuntimeException(
+                        exceptionPrefix + "Central RDB lookup table has not been initialised yet");
+            }
+
+            // Get a map of time series to data series
+
+            List<Map<?, ?>> listMap = getTimeseriesOfDataseries(dataIRI, context);
+
+            // Cast the entries with proper types
+            Map<String, List<String>> tsTableToIriListMap = (Map<String, List<String>>) listMap.get(0);
+            Map<String, List<String>> tsIriToDataIriListMap = (Map<String, List<String>>) listMap.get(1);
+            Map<String, String> dataIRIToColumnName = (Map<String, String>) listMap.get(2);
+
+            tsTableToIriListMap.forEach((tableName, tsIriList) -> {
+
+                Map<String, List<String>> currentTableTsIriToDataIriSubMap = tsIriList.stream()
+                        .filter(tsIriToDataIriListMap::containsKey) // Ensure the tsIri exists in the main data map
+                        .collect(Collectors.toMap(
+                                tsIri -> tsIri, // Key for the sub-map is the tsIri
+                                tsIriToDataIriListMap::get // Value for the sub-map is its List<String> dataIris
+                ));
+
+                // Step 1: Flatten all dataIRIs from the submap into a single Set<String> to
+                // remove duplicates
+                Set<String> relevantDataIris = currentTableTsIriToDataIriSubMap.values().stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toSet());
+
+                // Step 2: Filter the main dataIRIToColumnName map using the collected dataIRIs
+                Map<String, String> filteredDataIriToColumnNameMap = dataIRIToColumnName.entrySet().stream()
+                        .filter(entry -> relevantDataIris.contains(entry.getKey()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                Map<String, TimeSeries<T>> currentTimeSeriesDataMap = bulkQueryTimeSeriesWithinBounds(tableName,
+                        currentTableTsIriToDataIriSubMap, filteredDataIriToColumnNameMap, null, null, context);
+                timeSeriesDataMap.putAll(currentTimeSeriesDataMap);
+
+            });
+
+            return timeSeriesDataMap;
+
+        } catch (JPSRuntimeException e) {
+            // Re-throw JPSRuntimeExceptions
+            throw e;
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage());
+            // Throw all exceptions incurred by jooq (i.e. by SQL interactions with
+            // database) as JPSRuntimeException with respective message
+            throw new JPSRuntimeException(exceptionPrefix + SQL_ERROR, e);
+        }
+
+    }
+
+    /**
+     * Get time series IRI of all dataIRIs
+     * Requires existing RDB connection;
+     * 
+     * @param dataIRI list of data IRIs provided as string
+     * @param context
+     */
+    public List<Map<?, ?>> getTimeseriesOfDataseries(List<String> dataIRIs, DSLContext context) {
+
+        Table<?> table = getDSLTable(DB_TABLE_NAME);
+
+        Condition combinedCondition = DATA_IRI_COLUMN.in(dataIRIs);
+
+        Result<Record4<String, String, String, String>> queryResult = context
+                .select(TABLENAME_COLUMN, TS_IRI_COLUMN, DATA_IRI_COLUMN, COLUMNNAME_COLUMN).from(table)
+                .where(combinedCondition).fetch();
+        // TODO: JOOQ 3.15 or above would be able to produce nested maps with intoGroups
+        Map<String, List<String>> tableToTsIri = queryResult.intoGroups(TABLENAME_COLUMN, TS_IRI_COLUMN);
+        Map<String, List<String>> tsIriToDataIri = queryResult.intoGroups(TS_IRI_COLUMN, DATA_IRI_COLUMN);
+
+        // Post-process to ensure uniqueness per table
+        Map<String, List<String>> tableToTsIriDeduped = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : tableToTsIri.entrySet()) {
+            Set<String> uniqueTsIris = new HashSet<>(entry.getValue());
+            tableToTsIriDeduped.put(entry.getKey(), new ArrayList<>(uniqueTsIris));
+        }
+
+        Map<String, String> dataIRIToColumnName = new HashMap<>();
+        for (Record4<String, String, String, String> record : queryResult) {
+            String dataIRI = record.get(DATA_IRI_COLUMN);
+            String columnName = record.get(COLUMNNAME_COLUMN);
+            dataIRIToColumnName.put(dataIRI, columnName);
+        }
+
+        // TODO: improve this for clarity. Maybe make this its own class
+        List<Map<?, ?>> listOfMaps = new ArrayList<>();
+        listOfMaps.add(tableToTsIriDeduped);
+        listOfMaps.add(tsIriToDataIri);
+        listOfMaps.add(dataIRIToColumnName);
+
+        return listOfMaps;
+
+    }
+
+    // Can return multiple time series, providing that they are all in the same
+    // table
+
+    private Map<String, TimeSeries<T>> bulkQueryTimeSeriesWithinBounds(String tsTableName,
+            Map<String, List<String>> tsIriToDataIriListMap, Map<String, String> dataColumnNames, T lowerBound,
+            T upperBound, DSLContext context) {
+
+        // Initialize a Set to collect unique Field<?> objects
+        Set<Field<?>> uniqueFieldsSet = new HashSet<>();
+        uniqueFieldsSet.add(timeColumn);
+        uniqueFieldsSet.add(TS_IRI_COLUMN);
+
+        Map<String, Map<String, Field<Object>>> tsDataColumnFields = new HashMap<>();
+
+        tsIriToDataIriListMap.forEach((tsIri, dataIris) -> {
+
+            // Create map between data IRI and the corresponding column field in the table
+            Map<String, Field<Object>> dataColumnFields = new HashMap<>();
+            for (String dataIri : dataIris) {
+                String columnName = dataColumnNames.get(dataIri);
+                Field<Object> field = DSL.field(DSL.name(columnName));
+                dataColumnFields.put(dataIri, field);
+                uniqueFieldsSet.add(field); // HashSet naturally handles uniqueness
+            }
+            tsDataColumnFields.put(tsIri, dataColumnFields);
+
+        });
+
+        List<Field<?>> columnList = new ArrayList<>(uniqueFieldsSet);
+
+        // Potentially update bounds (if no bounds were provided)
+        if (lowerBound == null) {
+            lowerBound = context.select(min(timeColumn)).from(getDSLTable(tsTableName)).fetch(min(timeColumn))
+                    .get(0);
+        }
+        if (upperBound == null) {
+            upperBound = context.select(max(timeColumn)).from(getDSLTable(tsTableName)).fetch(max(timeColumn))
+                    .get(0);
+        }
+
+        // Perform query
+        Result<? extends Record> queryResult = context.select(columnList).from(getDSLTable(tsTableName))
+                .where(timeColumn.between(lowerBound, upperBound).and(TS_IRI_COLUMN.in(tsIriToDataIriListMap.keySet())))
+                .orderBy(timeColumn.asc()).fetch();
+
+        // Split up results based on time series IRI
+
+        // This is a workaround if the compiler is truly confused; it should not be
+        // necessary normally.
+        Map<String, Result<? extends Record>> recordsByTsIri = (Map<String, Result<? extends Record>>) (Object) queryResult
+                .intoGroups(TS_IRI_COLUMN);
+
+        Map<String, TimeSeries<T>> tsDataMap = new HashMap<>();
+
+        recordsByTsIri.forEach((tsIri, tsRecords) -> {
+
+            // Collect results and return a map of TimeSeries object
+            List<T> timeValues = tsRecords.getValues(timeColumn);
+            List<String> dataIris = tsIriToDataIriListMap.get(tsIri);
+            List<List<?>> dataValues = new ArrayList<>();
+            Map<String, Field<Object>> dataColumnFields = tsDataColumnFields.get(tsIri);
+
+            for (String data : tsIriToDataIriListMap.get(tsIri)) {
+                List<?> column = tsRecords.getValues(dataColumnFields.get(data));
+                dataValues.add(column);
+            }
+
+            tsDataMap.put(tsIri, new TimeSeries<>(timeValues, dataIris, dataValues));
+
+        });
+
+        return tsDataMap;
     }
 
     /**
