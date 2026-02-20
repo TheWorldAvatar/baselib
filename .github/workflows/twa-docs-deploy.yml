@@ -24,6 +24,13 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'       # pin to 3.11
+
+      - name: Upgrade pip + packaging
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          
+      - name: Install docs dependencies
+        run: pip install -r python_wrapper/twa_docs_deploy.txt
         
       - name: Deploy docs
         uses: mhausenblas/mkdocs-deploy-gh-pages@master
@@ -32,7 +39,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # CUSTOM_DOMAIN: optionaldomain.com
           CONFIG_FILE: python_wrapper/mkdocs.yml
-          EXTRA_PACKAGES: build-base pip setuptools wheel
+          EXTRA_PACKAGES: build-base
           # GITHUB_DOMAIN: github.myenterprise.com
-          REQUIREMENTS: python_wrapper/twa_docs_deploy.txt
-          NO_CACHE: true
+          INSTALL_REQUIREMENTS: false
