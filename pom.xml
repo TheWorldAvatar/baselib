@@ -15,6 +15,7 @@
     <!-- Project Properties -->
     <properties>
         <!-- Most of these are set in the parent pom -->
+        <log4j.version>2.26.0</log4j.version>
     </properties>
 
     <!-- Parent POM -->
