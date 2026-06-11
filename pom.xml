@@ -10,11 +10,12 @@
 
     <!-- Please refer to the Versioning page on TheWorldAvatar wiki for
     details on how version numbers should be selected -->
-    <version>1.49.0</version>
+    <version>1.49.1</version>
 
     <!-- Project Properties -->
     <properties>
         <!-- Most of these are set in the parent pom -->
+        <log4j.version>2.26.0</log4j.version>
     </properties>
 
     <!-- Parent POM -->
