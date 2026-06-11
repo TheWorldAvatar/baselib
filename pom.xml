@@ -10,7 +10,7 @@
 
     <!-- Please refer to the Versioning page on TheWorldAvatar wiki for
     details on how version numbers should be selected -->
-    <version>1.49.1-bump-log4j-SNAPSHOT</version>
+    <version>1.49.1</version>
 
     <!-- Project Properties -->
     <properties>
