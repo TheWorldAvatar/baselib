@@ -52,7 +52,8 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
     // mapping if the provided classes do not fall within these classes checks will
     // be made against the database to make the necessary initialisation
     // However the ontop mapping will not include the extra classes
-    private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Integer.class);
+    private static final List<Class<?>> PRECONFIGURED_DATA_CLASSES = Arrays.asList(Double.class, Integer.class,
+            String.class);
     private static final List<Class<?>> PRECONFIGURED_GEOMETRY_CLASSES = Arrays.asList(Point.class);
     private static final Integer PRECONFIGURED_SRID = 4326;
 
