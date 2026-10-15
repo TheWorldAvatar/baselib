@@ -235,7 +235,7 @@ Due to the way different time series share the same table, there may be a lot of
 
 ### Instantiation in RDB using TimeSeriesRDBClientOntop
 
-Time series data are stored in the format that is suitable for Ontop, one column is assigned for data type, three data types are pre-initialised - `java.lang.Double`, `java.lang.Integer`, and `org.postgis.Point`. Any data types that are not within these classes will be added, but will not be available via Ontop. The time class should be either numeric (e.g. subclass of Number) or a time stamp type (e.g. Instant, OffsetDateTime, ZonedDateTime, LocalDateTime).
+Time series data are stored in the format that is suitable for Ontop, one column is assigned for data type, four data types are pre-initialised - `java.lang.Double`, `java.lang.Integer`, `org.postgis.Point` and `String`. Any data types that are not within these classes will be added, but will not be available via Ontop. The time class should be either numeric (e.g. subclass of Number) or a time stamp type (e.g. Instant, OffsetDateTime, ZonedDateTime, LocalDateTime).
 
 This class is designed to be used via `com.cmclinnovations.stack.clients.timeseries.TimeSeriesRDBClient`, which includes functionalities to spin up a new Ontop container, otherwise it can still work but without the Ontop functionality.
 
@@ -265,14 +265,14 @@ This client creates 3 tables:
 
 | id | time_as_timestamp | time_as_number | data_iri_index | unit | double precision | geometry(Point,4326) | int |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| 1 | 2025-10-17 06:14:54+00 | 1760681694| 1 | '-' | NULL | NULL | 1 |
+| 1 | 2025-10-17 06:14:54+00 | 1760681694 | 1 | '-' | NULL | NULL | 1 |
 
 There are two time columns - `time_as_timestamp` and `time_as_number`, the column used will depend on the time class provided to the client.
 
 | time class | columns used |
 | :---: | :---: |
-|Instant | `time_as_timestamp` and `time_as_number` |
-|OffsetDateTime, ZonedDateTime, LocalDateTime    | `time_as_timestamp` |
+| Instant | `time_as_timestamp` and `time_as_number` |
+| OffsetDateTime, ZonedDateTime, LocalDateTime | `time_as_timestamp` |
 |Number (any subclass of Number, e.g. Double, Integer)  | `time_as_number` |
 
 
@@ -283,10 +283,10 @@ You can request login details by emailing `support<at>cmclinnovations.com` with 
    
 - **Agent examples**:
    Several agents provide working examples of how to use the `TimeSeriesClient`, e.g.  
-   * [AQMeshInputAgent] queries and stores time series data from AQ Mesh sensor in Singapore (Java)
-   * [FloodAgent] queries water level data from the Environment Agency, stores it in the KG, and retrieves it for visualisation (Java)
-   * [TimeSeriesExample] provides a minimum working example on how to instantiate time series data which is attached to some geospatial reference, stores it in the KG, and retrieves it for visualisation (Python, access of JPS_BASE_LIB via py4jps)
-   * [GasGridAgent] queries instantaneous gas flow data from the National Grid, stores it in the KG, and retrieves it for visualisation (Python, access of JPS_BASE_LIB via py4jps)
+  * [AQMeshInputAgent] queries and stores time series data from AQ Mesh sensor in Singapore (Java)
+  * [FloodAgent] queries water level data from the Environment Agency, stores it in the KG, and retrieves it for visualisation (Java)
+  * [TimeSeriesExample] provides a minimum working example on how to instantiate time series data which is attached to some geospatial reference, stores it in the KG, and retrieves it for visualisation (Python, access of JPS_BASE_LIB via py4jps)
+  * [GasGridAgent] queries instantaneous gas flow data from the National Grid, stores it in the KG, and retrieves it for visualisation (Python, access of JPS_BASE_LIB via py4jps)
 
 [//]: # (These are reference links used in the body)
 
