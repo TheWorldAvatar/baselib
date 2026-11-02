@@ -11,24 +11,25 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import org.apache.commons.collections4.ListUtils;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
+import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import org.jooq.Table;
-
 import uk.ac.cam.cares.jps.base.BlazegraphContainer;
-
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
 import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
@@ -237,6 +238,51 @@ public class TimeSeriesClientIntegrationTest {
             Assertions.assertTrue(e.getMessage().contains("Inconsistent state created when initialising time series"));
         }
 
+    }
+
+    @Test
+    void testInitTimeSeriesScale1() throws SQLException {
+        testInitTimeSeriesScale(1);
+    }
+
+    @Test
+    void testInitTimeSeriesScale100() throws SQLException {
+        testInitTimeSeriesScale(100);
+    }
+
+    @Test
+    void testInitTimeSeriesScale1000() throws SQLException {
+        testInitTimeSeriesScale(1_000);
+    }
+
+    @Test
+    void testInitTimeSeriesScale10000() throws SQLException {
+        testInitTimeSeriesScale(10_000);
+    }
+
+    @Test
+    void testInitTimeSeriesScale100000() throws SQLException {
+        testInitTimeSeriesScale(100_000);
+    }
+
+    @Test
+    void testInitTimeSeriesScale1000000() throws SQLException {
+        testInitTimeSeriesScale(1_000_000);
+    }
+
+    private void testInitTimeSeriesScale(int size) throws SQLException {
+        try (Connection conn = rdbStoreClient.getConnection()) {
+            // Verify kb is initially empty
+            Assertions.assertEquals(0, tsClient.countTimeSeries());
+            List<String> manyDataIRIs = IntStream.range(0, size).mapToObj(n -> "https://goodsizebaseiri/" + n)
+                    .collect(Collectors.toList());
+
+            List<List<String>> partitions = ListUtils.partition(manyDataIRIs, 100);
+            List<List<Class<?>>> dataClasses = Collections.nCopies(partitions.size(),
+                    Collections.nCopies(Integer.min(100, size), Double.class));
+            List<String> timeUnits = Collections.nCopies(partitions.size(), timeUnit);
+            tsClient.bulkInitTimeSeries(partitions, dataClasses, timeUnits, conn);
+        }
     }
 
     @Test
