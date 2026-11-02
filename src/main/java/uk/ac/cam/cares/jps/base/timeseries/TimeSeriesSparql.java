@@ -478,13 +478,13 @@ public class TimeSeriesSparql {
     protected void bulkInitTS(List<TimeSeriesKgMetadata> timeSeriesKgMetadataList, String rdbURL, String schema,
             Class<?> timeClass, Class<?> rdbClientClass) {
 
-        TriplesTemplate modify = SparqlBuilder.triplesTemplate();
         // set prefix declarations
         PrefixDeclarations pd = SparqlBuilder.prefixes(PREFIX_ONTOLOGY, PREFIX_KB, PREFIX_TIME);
 
         Map<CustomDuration, String> durationMap = createDurationIRIMapping();
 
         timeSeriesKgMetadataList.forEach(timeSeriesKgMetadata -> {
+            TriplesTemplate modify = SparqlBuilder.triplesTemplate();
             Iri tsIRI = iri(timeSeriesKgMetadata.getTimeSeriesIri());
 
             modify.and(tsIRI.isA(timeSeriesKgMetadata.getTimeSeriesType()));
@@ -551,9 +551,9 @@ public class TimeSeriesSparql {
             if (timeUnit != null) {
                 modify.and(tsIRI.has(hasTimeUnit, literalOf(timeUnit)));
             }
+            String queryString = pd.getQueryString() + modify.getQueryString().replace("{", "").replace("}", "");
+            kbClient.uploadTriples(queryString);
         });
-        String queryString = pd.getQueryString() + modify.getQueryString().replace("{", "").replace("}", "");
-        kbClient.uploadTriples(queryString);
     }
 
     /**
