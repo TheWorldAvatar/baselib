@@ -1,5 +1,7 @@
 package uk.ac.cam.cares.jps.base.query.streaminsert;
 
+import static org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf.iri;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -13,6 +15,7 @@ import javax.annotation.Nonnull;
 
 import org.apache.jena.rdf.model.Property;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.sparqlbuilder.core.Prefix;
 import org.eclipse.rdf4j.sparqlbuilder.core.QueryElement;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Iri;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfLiteral;
@@ -63,6 +66,36 @@ class TripleWriterImpl implements TripleWriter, S, P, O, L, T {
         } else {
             loggingOutput = null;
         }
+    }
+
+    @Override
+    public TripleWriter prefix(String name, String uri) throws IOException {
+        switch (previous) {
+            case i:
+                write("@prefix ");
+                write(name);
+                write(": <");
+                write(uri);
+                write("> .\n");
+                break;
+            default:
+                throw new TripleWriterException(
+                        "Prefixes must be added at the start of the Turtle data; not " + previous);
+        }
+        return this;
+    }
+
+    @Override
+    public TripleWriter prefix(Prefix prefix) throws IOException {
+        switch (previous) {
+            case i:
+                write(prefix.getQueryString());
+                break;
+            default:
+                throw new TripleWriterException(
+                        "Prefixes must be added at the start of the Turtle data; not " + previous);
+        }
+        return this;
     }
 
     @Override
