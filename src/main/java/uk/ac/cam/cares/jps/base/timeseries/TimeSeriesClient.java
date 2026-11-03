@@ -239,7 +239,7 @@ public class TimeSeriesClient<T> {
         // create random time series IRI
         List<String> tsIRIs = new ArrayList<>(dataIRIs.size());
 
-        List<TimeSeriesKgMetadata> timeSeriesKgMetadataList = new ArrayList<>();
+        List<TimeSeriesKgMetadata> timeSeriesKgMetadataList = new ArrayList<>(dataIRIs.size());
 
         for (int i = 0; i < dataIRIs.size(); i++) {
             String tsIRI = TimeSeriesSparql.TIMESERIES_NAMESPACE + "Timeseries_" + UUID.randomUUID();
@@ -1312,10 +1312,7 @@ public class TimeSeriesClient<T> {
      */
     public void bulkInitTimeSeries(List<List<String>> dataIRIs, List<List<Class<?>>> dataClass, List<String> timeUnit,
             Integer srid, Connection conn) {
-        List<Type> types = new ArrayList<>(dataIRIs.size());
-        for (int i = 0; i < dataIRIs.size(); i++) {
-            types.add(Type.GENERAL);
-        }
+        List<Type> types = Collections.nCopies(dataIRIs.size(), Type.GENERAL);
         bulkInitTimeSeries(dataIRIs, dataClass, timeUnit, srid, conn, types, null, null);
     }
 
