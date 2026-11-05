@@ -28,7 +28,6 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.images.PullPolicy;
 
 import uk.ac.cam.cares.jps.base.BlazegraphContainer;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
@@ -51,13 +50,7 @@ public class TimeSeriesClientBulkInitBenchmark {
     public int size;
 
     private final BlazegraphContainer blazegraph = new BlazegraphContainer();
-    private final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass")
-            .withExposedPorts(5432)
-            .withImagePullPolicy(PullPolicy.alwaysPull())
-            .withCommand("postgres", "-c", "max_connections=200");
+    private final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13.3");
 
     private TimeSeriesClient<Instant> tsClient;
     private RemoteRDBStoreClient rdbStoreClient;
