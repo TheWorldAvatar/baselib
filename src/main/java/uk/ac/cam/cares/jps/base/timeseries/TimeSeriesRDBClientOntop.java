@@ -804,17 +804,17 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
         List<String> result = context.select(DATA_IRI_COLUMN).from(table).fetch(DATA_IRI_COLUMN);
 
         List<String> smaller;
-        List<String> bigger;
+        HashSet<String> bigger;
         // See Collections.disjoint for justification of this optimisation
         if (dataIRIs.size() > result.size()) {
             smaller = result;
-            bigger = dataIRIs;
+            bigger = new HashSet<>(dataIRIs);
         } else {
             smaller = dataIRIs;
-            bigger = result;
+            bigger = new HashSet<>(result);
         }
         // Check if the result is non-empty and return the first element
-        return smaller.stream().filter(r -> bigger.contains(r)).findFirst()
+        return smaller.stream().filter(bigger::contains).findFirst()
                 // If no data IRI exists
                 .orElse(null);
     }
