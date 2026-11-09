@@ -492,7 +492,7 @@ public class TimeSeriesSparql {
                     tripleWriter.prefix(PREFIX_ONTOLOGY)
                             .prefix(PREFIX_KB)
                             .prefix(PREFIX_TIME);
-                    tripleWriter.s(timeSeriesIri).p("a").o(timeSeriesKgMetadata.getTimeSeriesType());
+                    tripleWriter.s(timeSeriesIri).a().o(timeSeriesKgMetadata.getTimeSeriesType());
 
                     if (timeSeriesKgMetadata.getTimeSeriesType().equals(AVERAGE_TIMESERIES)) {
                         Duration duration = timeSeriesKgMetadata.getDuration();
@@ -534,7 +534,7 @@ public class TimeSeriesSparql {
                             // Duration IRI
                             durationIRI = TIMESERIES_NAMESPACE + "AveragingPeriod_" + UUID.randomUUID();
                             tripleWriter.s(timeSeriesIri).p(hasAveragingPeriod).o(durationIRI);
-                            tripleWriter.s(durationIRI).p("a").o(Duration)
+                            tripleWriter.s(durationIRI).a().o(Duration)
                                     .p(unitType).o(temporalUnit)
                                     .p(numericDuration).l(numericValue);
                         }

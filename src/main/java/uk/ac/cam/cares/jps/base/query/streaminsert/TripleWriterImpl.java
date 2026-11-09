@@ -129,6 +129,11 @@ class TripleWriterImpl implements TripleWriter, S, P, O, L, T {
     }
 
     @Override
+    public P a() {
+        return writePredicate(" a ", this::write);
+    }
+
+    @Override
     public O o(String object) {
         return writeObject(object, this::writeIri);
     }

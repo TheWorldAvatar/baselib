@@ -15,4 +15,6 @@ public interface PAllowed {
     public P p(IRI predicate) throws IOException;
 
     public P p(Property predicate) throws IOException;
+
+    public P a() throws IOException;
 }
