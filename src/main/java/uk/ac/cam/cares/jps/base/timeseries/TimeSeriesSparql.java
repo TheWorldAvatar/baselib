@@ -11,11 +11,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,6 +39,7 @@ import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Iri;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import uk.ac.cam.cares.jps.base.derivation.ValuesPattern;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
@@ -969,16 +972,18 @@ public class TimeSeriesSparql {
      */
     boolean hasAnyExistingTimeSeries(List<String> dataIriList) {
         // check if any time series exists
-        String query = String.format("ASK {?data <%s> ?ts }", TIMESERIES_NAMESPACE + "hasTimeSeries");
-        kbClient.setQuery(query);
+        String hasTimeSeriesPredicate = TIMESERIES_NAMESPACE + "hasTimeSeries";
+        String askQuery = String.format("ASK {?data <%s> ?ts }", hasTimeSeriesPredicate);
+        kbClient.setQuery(askQuery);
         boolean anyExist = kbClient.executeQuery().getJSONObject(0).getBoolean("ASK");
         if (anyExist) {
+            Set<String> dataIriSet = new HashSet<>(dataIriList);
             // check if time series to be created already exists
-            String allDataIRI = dataIriList.stream().collect(Collectors.joining(" ", "<", ">"));
-            query = String.format("ASK {?data <%s> ?ts . VALUES ?data { %s } }",
-                    (TIMESERIES_NAMESPACE + "hasTimeSeries"), allDataIRI);
-            kbClient.setQuery(query);
-            return kbClient.executeQuery().getJSONObject(0).getBoolean("ASK");
+            String selectQuery = String.format("SELECT ?data WHERE {?data <%s> ?ts }", hasTimeSeriesPredicate);
+            JSONArray existing = kbClient.executeQuery(selectQuery);
+            return StreamSupport.stream(existing.spliterator(), true)
+                    .map(jsonObject -> ((JSONObject) jsonObject).getString("data"))
+                    .anyMatch(dataIriSet::contains);
         } else {
             return anyExist;
         }
