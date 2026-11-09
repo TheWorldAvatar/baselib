@@ -46,7 +46,7 @@ import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesRDBClientOntop;
 @Threads(1)
 public class TimeSeriesClientBulkInitBenchmark {
 
-@Param({ "100000" })
+    @Param({ "100000" })
     private int partitionSize;
 
     @Param({ "1000000" })
@@ -99,6 +99,29 @@ public class TimeSeriesClientBulkInitBenchmark {
                     Collections.nCopies(Integer.min(partitionSize, size), Double.class));
             List<String> timeUnits = Collections.nCopies(partitions.size(), timeUnit);
             tsClient.bulkInitTimeSeries(partitions, dataClasses, timeUnits, conn);
+        }
+    }
+
+    @Benchmark
+    public void bulkInitTimeSeriesTwice() throws SQLException {
+        try (Connection conn = rdbStoreClient.getConnection()) {
+            List<String> dataIris = IntStream.range(0, size)
+                    .mapToObj(n -> "https://goodsizebaseiri/" + n)
+                    .collect(Collectors.toList());
+            List<List<String>> partitions = ListUtils.partition(dataIris, partitionSize);
+            List<List<Class<?>>> dataClasses = Collections.nCopies(partitions.size(),
+                    Collections.nCopies(Integer.min(partitionSize, size), Double.class));
+            List<String> timeUnits = Collections.nCopies(partitions.size(), timeUnit);
+            tsClient.bulkInitTimeSeries(partitions, dataClasses, timeUnits, conn);
+
+            List<String> dataIris2 = IntStream.range(size, 2 * size)
+                    .mapToObj(n -> "https://goodsizebaseiri/" + n)
+                    .collect(Collectors.toList());
+            List<List<String>> partitions2 = ListUtils.partition(dataIris2, partitionSize);
+            List<List<Class<?>>> dataClasses2 = Collections.nCopies(partitions2.size(),
+                    Collections.nCopies(Integer.min(partitionSize, size), Double.class));
+            List<String> timeUnits2 = Collections.nCopies(partitions2.size(), timeUnit);
+            tsClient.bulkInitTimeSeries(partitions2, dataClasses2, timeUnits2, conn);
         }
     }
 }
