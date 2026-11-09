@@ -28,12 +28,14 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import uk.ac.cam.cares.jps.base.BlazegraphContainer;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
 import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
 import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesClient;
+import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesRDBClientOntop;
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SingleShotTime)
@@ -50,7 +52,9 @@ public class TimeSeriesClientBulkInitBenchmark {
     public int size;
 
     private final BlazegraphContainer blazegraph = new BlazegraphContainer();
-    private final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:13.3");
+    private final DockerImageName myImage = DockerImageName.parse("postgis/postgis:18-3.7")
+            .asCompatibleSubstituteFor("postgres");
+    private final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(myImage);
 
     private TimeSeriesClient<Instant> tsClient;
     private RemoteRDBStoreClient rdbStoreClient;
@@ -64,24 +68,12 @@ public class TimeSeriesClientBulkInitBenchmark {
             postgres.start();
 
             kbClient = blazegraph.getRemoteStoreClient();
-            tsClient = new TimeSeriesClient<>(kbClient, Instant.class);
+            tsClient = new TimeSeriesClient<>(kbClient, new TimeSeriesRDBClientOntop(Integer.class));
             rdbStoreClient = new RemoteRDBStoreClient(postgres.getJdbcUrl(), postgres.getUsername(),
                     postgres.getPassword());
-            clearStores();
         } catch (Exception e) {
             stopServices();
             throw new JPSRuntimeException("Benchmark container startup failed.", e);
-        }
-    }
-
-    private void clearStores() throws SQLException {
-        kbClient.executeUpdate(BlazegraphContainer.DELETE_ALL_QUERY);
-        try (Connection conn = rdbStoreClient.getConnection()) {
-            DSLContext context = DSL.using(conn, SQLDialect.POSTGRES);
-            List<Table<?>> tables = context.meta().getTables();
-            for (Table<?> table : tables) {
-                context.dropTable(table).cascade().execute();
-            }
         }
     }
 
