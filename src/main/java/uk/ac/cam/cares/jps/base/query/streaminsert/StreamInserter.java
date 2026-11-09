@@ -31,7 +31,7 @@ public class StreamInserter {
     private static final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     public static void streamInsert(String updateEndpointURL, Consumer<TripleWriter> outputter) {
-        try (PipedInputStream inputStream = new PipedInputStream()) {
+        try (PipedInputStream inputStream = new PipedInputStream(1024 * 1024)) { // 1MB buffer
             Future<String> future = null;
 
             try (PipedOutputStream outputStream = new PipedOutputStream(inputStream);
