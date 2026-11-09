@@ -46,9 +46,10 @@ import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesRDBClientOntop;
 @Threads(1)
 public class TimeSeriesClientBulkInitBenchmark {
 
-    private static final int PARTITION_SIZE = 1000;
+@Param({ "100000" })
+    private int partitionSize;
 
-    @Param({ "1", "100", "1000", "10000", "100000", "1000000" })
+    @Param({ "1000000" })
     public int size;
 
     private final BlazegraphContainer blazegraph = new BlazegraphContainer();
@@ -93,9 +94,9 @@ public class TimeSeriesClientBulkInitBenchmark {
             List<String> dataIris = IntStream.range(0, size)
                     .mapToObj(n -> "https://goodsizebaseiri/" + n)
                     .collect(Collectors.toList());
-            List<List<String>> partitions = ListUtils.partition(dataIris, PARTITION_SIZE);
+            List<List<String>> partitions = ListUtils.partition(dataIris, partitionSize);
             List<List<Class<?>>> dataClasses = Collections.nCopies(partitions.size(),
-                    Collections.nCopies(Integer.min(PARTITION_SIZE, size), Double.class));
+                    Collections.nCopies(Integer.min(partitionSize, size), Double.class));
             List<String> timeUnits = Collections.nCopies(partitions.size(), timeUnit);
             tsClient.bulkInitTimeSeries(partitions, dataClasses, timeUnits, conn);
         }
