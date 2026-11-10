@@ -135,12 +135,6 @@
                         <configuration>
                             <skip>true</skip>
                         </configuration>
-                    </execution><!-- Skip downloading the test Log4J2 config -->
-                    <execution>
-                        <id>download-test-log-config</id>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -457,6 +451,14 @@
                 </dependency>
             </dependencies>
             <build>
+                <testResources>
+                    <testResource>
+                        <directory>src/test/resources</directory>
+                        <excludes>
+                            <exclude>log4j2.xml</exclude>
+                        </excludes>
+                    </testResource>
+                </testResources>
                 <plugins>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
