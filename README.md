@@ -28,17 +28,21 @@ The time-series bulk-initialization benchmark is opt-in and requires Docker
 for its Blazegraph and PostgreSQL containers. Build it with JMH using the
 `benchmarks` Maven profile and generate the test classpath:
 
-```powershell
-mvn -Pbenchmarks test-compile dependency:build-classpath '-Dmdep.outputFile=target/benchmark-classpath.txt' '-Dmdep.includeScope=test'
-$benchmarkClasspath = "target\test-classes;target\classes;$(Get-Content target\benchmark-classpath.txt)"
-java -cp $benchmarkClasspath org.openjdk.jmh.Main uk.ac.cam.cares.jps.base.timeseries.ontop.TimeSeriesClientBulkInitBenchmark
+```bash
+mvn -Pbenchmarks -DskipTests clean test-compile dependency:build-classpath -Dmdep.outputFile=target/benchmark-classpath.txt -Dmdep.includeScope=test
+```
+
+And then run the generated .jar file:
+
+```bash
+java -cp "target/test-classes:target/classes:$(cat target/benchmark-classpath.txt)" -Djmh.shutdownTimeout=5 org.openjdk.jmh.Main uk.ac.cam.cares.jps.base.timeseries.ontop.TimeSeriesClientBulkInitBenchmark
 ```
 
 To collect an async-profiler CPU flame graph, install async-profiler and add
 its native library path to the JMH profiler options:
 
-```powershell
-java -cp $benchmarkClasspath org.openjdk.jmh.Main uk.ac.cam.cares.jps.base.timeseries.ontop.TimeSeriesClientBulkInitBenchmark -prof "async:libPath=<path-to-async-profiler-library>;output=flamegraph;event=cpu"
+```bash
+java -cp "target/test-classes:target/classes:$(cat target/benchmark-classpath.txt)" -Djmh.shutdownTimeout=5 org.openjdk.jmh.Main uk.ac.cam.cares.jps.base.timeseries.ontop.TimeSeriesClientBulkInitBenchmark -prof 'async:libPath=<path-to-async-profiler-library>;output=flamegraph;event=cpu;dir=profile-results'
 ```
 
 The benchmark runs each input scale once as a single-shot measurement. Stores

@@ -54,10 +54,10 @@ site-packages/
 bin/
 build/
 dist/
+profile-results/
 
 # Mac/OSX-specific files:
 .DS_Store
 
 # Windows-specific files:
 Thumbs.db
-uk.ac.cam.cares.jps.base.*
