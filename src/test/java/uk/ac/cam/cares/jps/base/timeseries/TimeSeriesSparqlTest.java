@@ -3,25 +3,47 @@ package uk.ac.cam.cares.jps.base.timeseries;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.ontology.OntModel;
-import org.apache.jena.query.*;
-import org.apache.jena.rdf.model.*;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.update.UpdateAction;
 import org.apache.jena.update.UpdateRequest;
 import org.apache.jena.vocabulary.RDFS;
 import org.json.JSONArray;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.query.JenaResultSetFormatter;
 import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
+import uk.ac.cam.cares.jps.base.query.streaminsert.MockTripleWriterImpl;
+import uk.ac.cam.cares.jps.base.query.streaminsert.StreamInserter;
+import uk.ac.cam.cares.jps.base.query.streaminsert.TripleWriter;
 import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesClient.Type;
 
 /**
@@ -834,21 +856,32 @@ public class TimeSeriesSparqlTest {
 
     @Test
     public void testBulkInitTs() {
-        TimeSeriesKgMetadata timeSeriesKgMetadata = new TimeSeriesKgMetadata(tsIRI1);
-        timeSeriesKgMetadata.setDataIriList(dataIRI1);
-        timeSeriesKgMetadata.setTimeUnit(timeUnit);
-        timeSeriesKgMetadata.setTimeSeriesType(Type.INSTANTANEOUS);
 
-        TimeSeriesKgMetadata timeSeriesKgMetadata2 = new TimeSeriesKgMetadata(tsIRI2);
-        timeSeriesKgMetadata2.setDataIriList(dataIRI2);
-        timeSeriesKgMetadata2.setTimeUnit(timeUnit);
-        timeSeriesKgMetadata2.setTimeSeriesType(Type.AVERAGE);
-        timeSeriesKgMetadata2.setDuration(Duration.ofDays(366 * 5));
-        timeSeriesKgMetadata2.setDurationUnit(ChronoUnit.YEARS);
+        try (MockedStatic<StreamInserter> streamInserter = Mockito.mockStatic(StreamInserter.class)) {
+            streamInserter.when(() -> StreamInserter.streamInsert(Mockito.nullable(String.class), Mockito.any()))
+                    .thenAnswer(invocation -> {
+                        Consumer<TripleWriter> outputter = invocation.getArgument(1);
+                        try (TripleWriter tripleWriter = new MockTripleWriterImpl(mockClient.getKnowledgeBase())) {
+                            outputter.accept(tripleWriter);
+                        }
+                        return null;
+                    });
 
-        sparqlClient.bulkInitTS(Arrays.asList(timeSeriesKgMetadata, timeSeriesKgMetadata2), dbURL, schema, timeClass,
-                rdbClientClass);
+            TimeSeriesKgMetadata timeSeriesKgMetadata = new TimeSeriesKgMetadata(tsIRI1);
+            timeSeriesKgMetadata.setDataIriList(dataIRI1);
+            timeSeriesKgMetadata.setTimeUnit(timeUnit);
+            timeSeriesKgMetadata.setTimeSeriesType(Type.INSTANTANEOUS);
 
+            TimeSeriesKgMetadata timeSeriesKgMetadata2 = new TimeSeriesKgMetadata(tsIRI2);
+            timeSeriesKgMetadata2.setDataIriList(dataIRI2);
+            timeSeriesKgMetadata2.setTimeUnit(timeUnit);
+            timeSeriesKgMetadata2.setTimeSeriesType(Type.AVERAGE);
+            timeSeriesKgMetadata2.setDuration(Duration.ofDays(366 * 5));
+            timeSeriesKgMetadata2.setDurationUnit(ChronoUnit.YEARS);
+
+            sparqlClient.bulkInitTS(Arrays.asList(timeSeriesKgMetadata, timeSeriesKgMetadata2), dbURL, schema,
+                    timeClass, rdbClientClass);
+        }
         OntModel testKnowledgeBase = mockClient.getKnowledgeBase();
 
         Property hasRDB = ResourceFactory.createProperty(TimeSeriesSparql.TIMESERIES_NAMESPACE + "hasRDB");

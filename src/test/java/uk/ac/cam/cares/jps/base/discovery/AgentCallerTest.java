@@ -50,7 +50,7 @@ public class AgentCallerTest {
 
     @Test
     public void testexecuteGetMultipleStringInputs() {
-        String path = "https://www.example.com/index.html" ;
+        String path = "https://httpbin.org/get" ;
         String k1 = "k1" ;
         String v1 = "v1" ;
         String res = AgentCaller.executeGet(path,k1,v1);
@@ -87,7 +87,7 @@ public class AgentCallerTest {
         Method method = TargetClass.getDeclaredMethod("getUriBuilderForPath", String.class) ;
         AgentCaller agc = (AgentCaller) TargetClass.getConstructor().newInstance();
         method.setAccessible(true);
-        URIBuilder builder = (URIBuilder) method.invoke(agc,"https://www.example.com/index.html");
+        URIBuilder builder = (URIBuilder) method.invoke(agc,"https://httpbin.org/get");
         assertNotNull(builder);
 
     }

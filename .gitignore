@@ -54,6 +54,7 @@ site-packages/
 bin/
 build/
 dist/
+profile-results/
 
 # Mac/OSX-specific files:
 .DS_Store

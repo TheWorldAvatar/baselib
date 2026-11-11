@@ -801,15 +801,22 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
         Table<?> table = getDSLTable(TS_DATA_IRI_TABLE);
 
-        List<String> result = context.select(DATA_IRI_COLUMN).from(table).where(DATA_IRI_COLUMN.in(dataIRIs))
-                .fetch(DATA_IRI_COLUMN);
+        List<String> result = context.select(DATA_IRI_COLUMN).from(table).fetch(DATA_IRI_COLUMN);
 
-        // Check if the result is non-empty and return the first element
-        if (!result.isEmpty()) {
-            return result.get(0);
+        List<String> smaller;
+        HashSet<String> bigger;
+        // See Collections.disjoint for justification of this optimisation
+        if (dataIRIs.size() > result.size()) {
+            smaller = result;
+            bigger = new HashSet<>(dataIRIs);
+        } else {
+            smaller = dataIRIs;
+            bigger = new HashSet<>(result);
         }
-
-        return null; // If no data IRI exists
+        // Check if the result is non-empty and return the first element
+        return smaller.stream().filter(bigger::contains).findFirst()
+                // If no data IRI exists
+                .orElse(null);
     }
 
     @Override

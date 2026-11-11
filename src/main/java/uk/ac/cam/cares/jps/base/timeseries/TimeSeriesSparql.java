@@ -3,17 +3,21 @@ package uk.ac.cam.cares.jps.base.timeseries;
 import static org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf.iri;
 import static org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf.literalOf;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,8 +25,6 @@ import org.eclipse.rdf4j.sparqlbuilder.constraint.Expressions;
 import org.eclipse.rdf4j.sparqlbuilder.core.Assignment;
 import org.eclipse.rdf4j.sparqlbuilder.core.Prefix;
 import org.eclipse.rdf4j.sparqlbuilder.core.SparqlBuilder;
-import org.eclipse.rdf4j.sparqlbuilder.core.TriplesTemplate;
-import org.eclipse.rdf4j.sparqlbuilder.core.PrefixDeclarations;
 import org.eclipse.rdf4j.sparqlbuilder.core.Variable;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.DeleteDataQuery;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.InsertDataQuery;
@@ -37,10 +39,12 @@ import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Iri;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfObject;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import uk.ac.cam.cares.jps.base.derivation.ValuesPattern;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.interfaces.TripleStoreClientInterface;
+import uk.ac.cam.cares.jps.base.query.streaminsert.StreamInserter;
 
 /**
  * This class contains a collection of methods to interact with a triple
@@ -478,82 +482,88 @@ public class TimeSeriesSparql {
     protected void bulkInitTS(List<TimeSeriesKgMetadata> timeSeriesKgMetadataList, String rdbURL, String schema,
             Class<?> timeClass, Class<?> rdbClientClass) {
 
-        TriplesTemplate modify = SparqlBuilder.triplesTemplate();
-        // set prefix declarations
-        PrefixDeclarations pd = SparqlBuilder.prefixes(PREFIX_ONTOLOGY, PREFIX_KB, PREFIX_TIME);
-
         Map<CustomDuration, String> durationMap = createDurationIRIMapping();
-
         timeSeriesKgMetadataList.forEach(timeSeriesKgMetadata -> {
-            Iri tsIRI = iri(timeSeriesKgMetadata.getTimeSeriesIri());
+            StreamInserter.streamInsert(kbClient.getUpdateEndpoint(), tripleWriter -> {
 
-            modify.and(tsIRI.isA(timeSeriesKgMetadata.getTimeSeriesType()));
+                String timeSeriesIri = timeSeriesKgMetadata.getTimeSeriesIri();
+                try {
+                    // set prefix declarations
+                    tripleWriter.prefix(PREFIX_ONTOLOGY)
+                            .prefix(PREFIX_KB)
+                            .prefix(PREFIX_TIME);
+                    tripleWriter.s(timeSeriesIri).a().o(timeSeriesKgMetadata.getTimeSeriesType());
 
-            if (timeSeriesKgMetadata.getTimeSeriesType().equals(AVERAGE_TIMESERIES)) {
-                Duration duration = timeSeriesKgMetadata.getDuration();
-                if (duration.getNano() != 0) {
-                    LOGGER.warn("Nano is ignored");
+                    if (timeSeriesKgMetadata.getTimeSeriesType().equals(AVERAGE_TIMESERIES)) {
+                        Duration duration = timeSeriesKgMetadata.getDuration();
+                        if (duration.getNano() != 0) {
+                            LOGGER.warn("Nano is ignored");
+                        }
+
+                        // numeric Duration
+                        if (duration.getSeconds() <= 0.0) {
+                            throw new JPSRuntimeException(
+                                    exceptionPrefix + "Numeric Duration must be a positive value");
+                        }
+
+                        ChronoUnit durationUnit = timeSeriesKgMetadata.getDurationUnit();
+                        if (!temporalUnitMap.containsKey(durationUnit)) {
+                            throw new JPSRuntimeException(
+                                    exceptionPrefix + "Temporal Unit: " + durationUnit.toString() + " of invalid type");
+                        }
+
+                        Double numericValue = Double
+                                .valueOf(duration.getSeconds() / durationUnit.getDuration().getSeconds());
+                        String temporalUnit = temporalUnitMap.get(durationUnit);
+
+                        CustomDuration key = new CustomDuration(numericValue, temporalUnit);
+
+                        // Check if a duration iri with given temporalUnit and numericDuration exists in
+                        // the knowledge graph.
+                        // If true, attach the Average TimeSeries to the existing duration IRI.
+                        // Otherwise, create a new duration IRI.
+                        String durationIRI = null;
+
+                        if (durationMap.containsKey(key)) {
+                            durationIRI = durationMap.get(key);
+                        }
+
+                        if (durationIRI != null) {
+                            tripleWriter.s(timeSeriesIri).p(hasAveragingPeriod).o(durationIRI);
+                        } else {
+                            // Duration IRI
+                            durationIRI = TIMESERIES_NAMESPACE + "AveragingPeriod_" + UUID.randomUUID();
+                            tripleWriter.s(timeSeriesIri).p(hasAveragingPeriod).o(durationIRI);
+                            tripleWriter.s(durationIRI).a().o(Duration)
+                                    .p(unitType).o(temporalUnit)
+                                    .p(numericDuration).l(numericValue);
+                        }
+                    }
+
+                    // relational database URL and classes used by TimeSeriesClientFactory
+                    tripleWriter.s(timeSeriesIri).p(hasRDB).l(rdbURL)
+                            .p(HAS_RDB_CLIENT_CLASS).l(rdbClientClass.getCanonicalName())
+                            .p(HAS_TIME_CLASS).l(timeClass.getCanonicalName())
+                            .p(HAS_SCHEMA).l(schema)
+                            .p(HAS_UPDATE_ENDPOINT).l(kbClient.getUpdateEndpoint());
+
+                    // link each data to time series
+                    for (String data : timeSeriesKgMetadata.getDataIriList()) {
+                        tripleWriter.s(data).p(hasTimeSeries).o(timeSeriesIri);
+                    }
+
+                    // optional: define time unit
+                    String timeUnit = timeSeriesKgMetadata.getTimeUnit();
+                    if (timeUnit != null) {
+                        tripleWriter.s(timeSeriesIri).p(hasTimeUnit).l(timeUnit);
+                    }
+                    tripleWriter.end();
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Error inserting timeseries triples.", e);
                 }
+            });
 
-                // numeric Duration
-                if (duration.getSeconds() <= 0.0) {
-                    throw new JPSRuntimeException(exceptionPrefix + "Numeric Duration must be a positive value");
-                }
-
-                ChronoUnit durationUnit = timeSeriesKgMetadata.getDurationUnit();
-                if (!temporalUnitMap.containsKey(durationUnit)) {
-                    throw new JPSRuntimeException(
-                            exceptionPrefix + "Temporal Unit: " + durationUnit.toString() + " of invalid type");
-                }
-
-                Double numericValue = Double
-                        .valueOf(duration.getSeconds() / durationUnit.getDuration().getSeconds());
-                String temporalUnit = temporalUnitMap.get(durationUnit);
-
-                CustomDuration key = new CustomDuration(numericValue, temporalUnit);
-
-                // Check if a duration iri with given temporalUnit and numericDuration exists in
-                // the knowledge graph.
-                // If true, attach the Average TimeSeries to the existing duration IRI.
-                // Otherwise, create a new duration IRI.
-                String durationIRI = null;
-
-                if (durationMap.containsKey(key)) {
-                    durationIRI = durationMap.get(key);
-                }
-
-                if (durationIRI != null) {
-                    modify.and(tsIRI.has(hasAveragingPeriod, iri(durationIRI)));
-                } else {
-                    // Duration IRI
-                    durationIRI = TIMESERIES_NAMESPACE + "AveragingPeriod_" + UUID.randomUUID();
-                    modify.and(tsIRI.has(hasAveragingPeriod, iri(durationIRI)));
-                    modify.and(iri(durationIRI).isA(Duration));
-                    modify.and(iri(durationIRI).has(unitType, iri(temporalUnit)));
-                    modify.and(iri(durationIRI).has(numericDuration, numericValue));
-                }
-            }
-
-            // relational database URL and classes used by TimeSeriesClientFactory
-            modify.and(
-                    tsIRI.has(hasRDB, literalOf(rdbURL)).andHas(HAS_RDB_CLIENT_CLASS, rdbClientClass.getCanonicalName())
-                            .andHas(HAS_TIME_CLASS, timeClass.getCanonicalName()).andHas(HAS_SCHEMA, schema)
-                            .andHas(HAS_UPDATE_ENDPOINT, kbClient.getUpdateEndpoint()));
-
-            // link each data to time series
-            for (String data : timeSeriesKgMetadata.getDataIriList()) {
-                TriplePattern tsTp = iri(data).has(hasTimeSeries, tsIRI);
-                modify.and(tsTp);
-            }
-
-            // optional: define time unit
-            String timeUnit = timeSeriesKgMetadata.getTimeUnit();
-            if (timeUnit != null) {
-                modify.and(tsIRI.has(hasTimeUnit, literalOf(timeUnit)));
-            }
         });
-        String queryString = pd.getQueryString() + modify.getQueryString().replace("{", "").replace("}", "");
-        kbClient.uploadTriples(queryString);
     }
 
     /**
@@ -962,17 +972,18 @@ public class TimeSeriesSparql {
      */
     boolean hasAnyExistingTimeSeries(List<String> dataIriList) {
         // check if any time series exists
-        String query = String.format("ASK {?data <%s> ?ts }", TIMESERIES_NAMESPACE + "hasTimeSeries");
-        kbClient.setQuery(query);
+        String hasTimeSeriesPredicate = TIMESERIES_NAMESPACE + "hasTimeSeries";
+        String askQuery = String.format("ASK {?data <%s> ?ts }", hasTimeSeriesPredicate);
+        kbClient.setQuery(askQuery);
         boolean anyExist = kbClient.executeQuery().getJSONObject(0).getBoolean("ASK");
         if (anyExist) {
+            Set<String> dataIriSet = new HashSet<>(dataIriList);
             // check if time series to be created already exists
-            String allDataIRI = String.join(" ",
-                    dataIriList.stream().map(str -> "<" + str + ">").collect(Collectors.toList()));
-            query = String.format("ASK {?data <%s> ?ts . VALUES ?data { %s } }",
-                    (TIMESERIES_NAMESPACE + "hasTimeSeries"), allDataIRI);
-            kbClient.setQuery(query);
-            return kbClient.executeQuery().getJSONObject(0).getBoolean("ASK");
+            String selectQuery = String.format("SELECT ?data WHERE {?data <%s> ?ts }", hasTimeSeriesPredicate);
+            JSONArray existing = kbClient.executeQuery(selectQuery);
+            return StreamSupport.stream(existing.spliterator(), true)
+                    .map(jsonObject -> ((JSONObject) jsonObject).getString("data"))
+                    .anyMatch(dataIriSet::contains);
         } else {
             return anyExist;
         }

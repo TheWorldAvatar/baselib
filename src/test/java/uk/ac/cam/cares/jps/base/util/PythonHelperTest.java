@@ -37,7 +37,7 @@ public class PythonHelperTest {
 		// Path to Python script in target/test-classes
 		String path = Paths.get(this.getClass().getResource("/PythonHelperTest.py").toURI()).toFile().getPath();
 		
-		String[] cmd = { "python", path };
+		String[] cmd = { "python3", path };
 		
 		String result = PythonHelper.processCommand(cmd);
 		

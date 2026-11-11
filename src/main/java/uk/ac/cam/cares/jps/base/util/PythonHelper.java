@@ -44,7 +44,7 @@ public class PythonHelper {
 		
 		LOGGER.info(path, parameter);
 		
-		String[] cmd = { "python", path, parameter };
+		String[] cmd = { "python3", path, parameter };
 
 		return processCommand(cmd);	
 	}
@@ -54,7 +54,7 @@ public class PythonHelper {
 		
 		LOGGER.info(pathPythonScript+ parameter1+ parameter2);
 		
-		String[] cmd = { "python", pathPythonScript, parameter1, parameter2 };
+		String[] cmd = { "python3", pathPythonScript, parameter1, parameter2 };
 		
 		return processCommand(cmd);
 	}
@@ -64,7 +64,7 @@ public class PythonHelper {
 		
 		LOGGER.info(pathPythonScript+ parameter1+ parameter2+ parameter3+ parameter4);
 		
-		String[] cmd = { "python", pathPythonScript, parameter1, parameter2, parameter3, parameter4 };
+		String[] cmd = { "python3", pathPythonScript, parameter1, parameter2, parameter3, parameter4 };
 		
 		return processCommand(cmd);
 	}
