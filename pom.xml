@@ -17,6 +17,7 @@
         <!-- Most of these are set in the parent pom -->
         <log4j.version>2.26.0</log4j.version>
         <log.artifact>java-logging-prod</log.artifact>
+        <rdf4j.version>6.1.0</rdf4j.version>
     </properties>
 
     <!-- Parent POM -->
