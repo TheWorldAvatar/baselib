@@ -10,13 +10,14 @@
 
     <!-- Please refer to the Versioning page on TheWorldAvatar wiki for
     details on how version numbers should be selected -->
-    <version>1.51.0</version>
+    <version>1.52.0-rdf4j-update-SNAPSHOT</version>
 
     <!-- Project Properties -->
     <properties>
         <!-- Most of these are set in the parent pom -->
         <log4j.version>2.26.0</log4j.version>
         <log.artifact>java-logging-prod</log.artifact>
+        <rdf4j.version>6.1.0</rdf4j.version>
     </properties>
 
     <!-- Parent POM -->
@@ -402,7 +403,8 @@
         </dependency>
         <dependency>
             <groupId>net.sourceforge.owlapi</groupId>
-            <artifactId>owlapi-distribution</artifactId>
+            <artifactId>owlapi-apibinding</artifactId>
+            <version>5.5.1</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/commons-validator/commons-validator -->
