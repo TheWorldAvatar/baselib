@@ -17,7 +17,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
         <log4j.version>2.26.0</log4j.version>
-        <log.artifact>java-logging-prod</log.artifact>
         <rdf4j.version>4.3.9</rdf4j.version>
         <jena.version>4.10.0</jena.version>
         <glassfish.jersey.version>2.41</glassfish.jersey.version>
