@@ -50,8 +50,6 @@
 
     <!-- Build Configuration -->
     <build>
-        <finalName>jps-base-lib</finalName>
-
         <plugins>
 
             <!-- Compile and build to specific Java version -->
