@@ -101,7 +101,7 @@
                             <useRepositoryLayout>false</useRepositoryLayout>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                         </configuration>
-                    </execution>s
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
