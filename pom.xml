@@ -22,6 +22,7 @@
         <glassfish.jersey.version>2.41</glassfish.jersey.version>
         <slf4j.version>1.7.36</slf4j.version>
         <apache.httpcomponents.version>4.5.14</apache.httpcomponents.version>
+        <spring.version>3.2.9.RELEASE</spring.version>
     </properties>
 
     <!-- Repository locations to fetch from -->
@@ -183,17 +184,17 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-            <version>3.2.9.RELEASE</version>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-beans</artifactId>
-            <version>3.2.9.RELEASE</version>
+            <version>${spring.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
-            <version>3.2.9.RELEASE</version>
+            <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
 
