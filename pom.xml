@@ -23,7 +23,8 @@
         <glassfish.jersey.version>2.41</glassfish.jersey.version>
         <slf4j.version>1.7.36</slf4j.version>
         <apache.httpcomponents.version>4.5.14</apache.httpcomponents.version>
-        <spring.version>3.2.9.RELEASE</spring.version>
+        <spring.version>7.1.0</spring.version>
+        <mockito.version>5.24.0</mockito.version>
     </properties>
 
     <!-- Repository locations to fetch from -->
@@ -56,9 +57,9 @@
             <!-- Compile and build to specific Java version -->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-<version>3.14.1</version>
+                <version>3.14.1</version>
                 <configuration>
-                                        <release>${maven.compiler.release}</release>
+                    <release>${maven.compiler.release}</release>
                     <compilerArgs>
                         <arg>-Xpkginfo:always</arg>
                     </compilerArgs>
@@ -280,13 +281,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.12.4</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
-            <version>3.12.4</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
 
