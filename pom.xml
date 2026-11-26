@@ -65,22 +65,6 @@
                         <arg>-Xpkginfo:always</arg>
                     </compilerArgs>
                 </configuration>
-
-                <executions>
-                    <execution>
-                        <id>default-testCompile</id>
-                        <phase>test-compile</phase>
-                        <configuration>
-                            <testExcludes>
-                                <!-- Ignore the fed tests as it is only a proof of concept -->
-                                <exclude>**/fed/*.java</exclude>
-                            </testExcludes>
-                        </configuration>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
 
             <!-- Edit the manifest file that goes inside the .jar file -->
@@ -119,15 +103,7 @@
                             <useRepositoryLayout>false</useRepositoryLayout>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                         </configuration>
-                    </execution>
-
-                    <!-- Skip downloading the runtime Log4J2 config -->
-                    <execution>
-                        <id>download-runtime-log-config</id>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </execution>
+                    </execution>s
                 </executions>
             </plugin>
             <plugin>
@@ -418,14 +394,6 @@
                 </dependency>
             </dependencies>
             <build>
-                <testResources>
-                    <testResource>
-                        <directory>src/test/resources</directory>
-                        <excludes>
-                            <exclude>log4j2.xml</exclude>
-                        </excludes>
-                    </testResource>
-                </testResources>
                 <plugins>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
