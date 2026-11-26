@@ -64,10 +64,6 @@
                     <compilerArgs>
                         <arg>-Xpkginfo:always</arg>
                     </compilerArgs>
-                    <excludes>
-                        <!-- Ignore the fed code as it is only a proof of concept -->
-                        <exclude>**/fed/*.java</exclude>
-                    </excludes>
                 </configuration>
 
                 <executions>
