@@ -4,10 +4,10 @@ import org.jooq.tools.jdbc.MockConnection;
 import org.jooq.tools.jdbc.MockDataProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.*;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
@@ -54,7 +54,7 @@ public class TimeSeriesClientTest {
     private TimeSeries<Instant> mockTimeSeries;
     private AutoCloseable closeMocks;
 
-    @Before
+    @BeforeEach
     public void setUpClient() throws URISyntaxException, IOException {
         String kgEndpoint = "http://localhost:9999/blazegraph/namespace/timeseries/sparql";
         RemoteStoreClient remoteStoreClient = new RemoteStoreClient(kgEndpoint, kgEndpoint);
@@ -63,17 +63,17 @@ public class TimeSeriesClientTest {
         testClientWithMocks = new TimeSeriesClient<>(remoteStoreClient, timeSeriesRDBClient);
     }
 
-    @Before
+    @BeforeEach
     public void openMocks() {
         closeMocks = MockitoAnnotations.openMocks(this);
     }
 
-    @After
+    @AfterEach
     public void releaseMocks() throws Exception {
         closeMocks.close();
     }
 
-    @Before
+    @BeforeEach
     public void setUpTestData() {
         // Initialise time series with 3 associated data series
         dataIRIs = Arrays.asList("http://data1", "http://data2", "http://data3");
@@ -96,8 +96,8 @@ public class TimeSeriesClientTest {
         Field kbClientField = TimeSeriesSparql.class.getDeclaredField("kbClient");
         kbClientField.setAccessible(true);
         TripleStoreClientInterface setKBClient = (TripleStoreClientInterface) kbClientField.get(rdfClient);
-        Assert.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
-        Assert.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
+        Assertions.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
+        Assertions.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
         // Retrieve the rdb client to test whether it is set correctly
         Field rdbClientField = TimeSeriesClient.class.getDeclaredField("rdbClient");
         rdbClientField.setAccessible(true);
@@ -106,7 +106,7 @@ public class TimeSeriesClientTest {
         Field timecolumn = TimeSeriesRDBClient.class.getDeclaredField("timeColumn");
         timecolumn.setAccessible(true);
         org.jooq.Field timeColumnField = (org.jooq.Field) timecolumn.get(rdbClient);
-        Assert.assertEquals("time", timeColumnField.getName());
+        Assertions.assertEquals("time", timeColumnField.getName());
     }
 
     @Test
@@ -132,15 +132,15 @@ public class TimeSeriesClientTest {
         Field kbClientField = TimeSeriesSparql.class.getDeclaredField("kbClient");
         kbClientField.setAccessible(true);
         TripleStoreClientInterface setKBClient = (TripleStoreClientInterface) kbClientField.get(rdfClient);
-        Assert.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
-        Assert.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
+        Assertions.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
+        Assertions.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
         // Retrieve the rdb client to test whether it is set correctly
         Field rdbClientField = TimeSeriesClient.class.getDeclaredField("rdbClient");
         rdbClientField.setAccessible(true);
         TimeSeriesRDBClientInterface<Instant> rdbClient = (TimeSeriesRDBClientInterface<Instant>) rdbClientField
                 .get(client);
-        Assert.assertEquals(jdbcUrl, rdbClient.getRdbURL());
-        Assert.assertEquals(rdbUser, rdbClient.getRdbUser());
+        Assertions.assertEquals(jdbcUrl, rdbClient.getRdbURL());
+        Assertions.assertEquals(rdbUser, rdbClient.getRdbUser());
     }
 
     @Test
@@ -156,8 +156,8 @@ public class TimeSeriesClientTest {
         Field kbClientField = TimeSeriesSparql.class.getDeclaredField("kbClient");
         kbClientField.setAccessible(true);
         TripleStoreClientInterface setKBClient = (TripleStoreClientInterface) kbClientField.get(rdfClient);
-        Assert.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
-        Assert.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
+        Assertions.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
+        Assertions.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
     }
 
     @Test
@@ -178,15 +178,15 @@ public class TimeSeriesClientTest {
         Field kbClientField = TimeSeriesSparql.class.getDeclaredField("kbClient");
         kbClientField.setAccessible(true);
         TripleStoreClientInterface setKBClient = (TripleStoreClientInterface) kbClientField.get(rdfClient);
-        Assert.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
-        Assert.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
+        Assertions.assertEquals(kbClient.getQueryEndpoint(), setKBClient.getQueryEndpoint());
+        Assertions.assertEquals(kbClient.getUpdateEndpoint(), setKBClient.getUpdateEndpoint());
         // Retrieve the rdb client to test whether it is set correctly
         Field rdbClientField = TimeSeriesClient.class.getDeclaredField("rdbClient");
         rdbClientField.setAccessible(true);
         TimeSeriesRDBClientInterface<Instant> rdbClient = (TimeSeriesRDBClientInterface<Instant>) rdbClientField
                 .get(client);
-        Assert.assertEquals(db_url, rdbClient.getRdbURL());
-        Assert.assertEquals(db_user, rdbClient.getRdbUser());
+        Assertions.assertEquals(db_url, rdbClient.getRdbURL());
+        Assertions.assertEquals(db_user, rdbClient.getRdbUser());
     }
 
     @Test
@@ -197,11 +197,11 @@ public class TimeSeriesClientTest {
         rdbClientField.setAccessible(true);
         TimeSeriesRDBClientInterface<Instant> rdbClient = (TimeSeriesRDBClientInterface<Instant>) rdbClientField
                 .get(testClient);
-        Assert.assertEquals("testURL", rdbClient.getRdbURL());
-        Assert.assertEquals("user", rdbClient.getRdbUser());
+        Assertions.assertEquals("testURL", rdbClient.getRdbURL());
+        Assertions.assertEquals("user", rdbClient.getRdbUser());
         Field passwordField = TimeSeriesRDBClient.class.getDeclaredField("rdbPassword");
         passwordField.setAccessible(true);
-        Assert.assertEquals("password", passwordField.get(rdbClient));
+        Assertions.assertEquals("password", passwordField.get(rdbClient));
     }
 
     @Test
@@ -212,13 +212,13 @@ public class TimeSeriesClientTest {
                 Mockito.any(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any());
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks
                 .initTimeSeries(dataIRIs, dataClasses, timeUnit, conn, TimeSeriesClient.Type.GENERAL,
                         null, null));
-        Assert.assertTrue(e.getMessage().contains("Timeseries was not created"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertEquals("KG down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("Timeseries was not created"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertEquals("KG down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
     }
 
     @Test
@@ -239,13 +239,13 @@ public class TimeSeriesClientTest {
         Field rdbClientField = TimeSeriesClient.class.getDeclaredField("rdbClient");
         rdbClientField.setAccessible(true);
         rdbClientField.set(testClientWithMocks, mockRDBClient);
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.initTimeSeries(dataIRIs, dataClasses, timeUnit, conn,
                         TimeSeriesClient.Type.INSTANTANEOUS, null, null));
-        Assert.assertTrue(e.getMessage().contains("Timeseries was not created"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertEquals("RDB down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("Timeseries was not created"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertEquals("RDB down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
         // KG reversion does not work //
         // Set-up stubbing
         Mockito.doNothing().when(mockSparqlClient).initTS(Mockito.any(), Mockito.anyString(), Mockito.anyString(),
@@ -260,12 +260,12 @@ public class TimeSeriesClientTest {
         rdbClientField.setAccessible(true);
         rdbClientField.set(testClientWithMocks, mockRDBClient);
 
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks.initTimeSeries(dataIRIs,
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks.initTimeSeries(dataIRIs,
                 dataClasses, timeUnit, conn, TimeSeriesClient.Type.AVERAGE, Duration.ofDays(1),
                 ChronoUnit.SECONDS));
-        Assert.assertTrue(e.getMessage().contains("Inconsistent state created when initialising time series"));
-        Assert.assertTrue(e.getMessage().contains(tsIRI.getValue()));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains("Inconsistent state created when initialising time series"));
+        Assertions.assertTrue(e.getMessage().contains(tsIRI.getValue()));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
     }
 
     @Test
@@ -274,11 +274,11 @@ public class TimeSeriesClientTest {
         Mockito.when(mockSparqlClient.getTimeSeries(dataIRIs.get(0))).thenReturn(null);
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteIndividualTimeSeries(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("not associated with any timeseries"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(dataIRIs.get(0)));
+        Assertions.assertTrue(e.getMessage().contains("not associated with any timeseries"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(dataIRIs.get(0)));
     }
 
     @Test
@@ -292,13 +292,13 @@ public class TimeSeriesClientTest {
                 .removeTimeSeriesAssociation(dataIRI);
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteIndividualTimeSeries(dataIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("was not deleted"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(dataIRI));
-        Assert.assertEquals("KG down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("was not deleted"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(dataIRI));
+        Assertions.assertEquals("KG down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
     }
 
     @Test
@@ -315,13 +315,13 @@ public class TimeSeriesClientTest {
         Mockito.doThrow(new JPSRuntimeException("RDB down")).when(mockRDBClient).deleteTimeSeries(dataIRI,
                 conn);
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteIndividualTimeSeries(dataIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("was not deleted"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(dataIRI));
-        Assert.assertEquals("RDB down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("was not deleted"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(dataIRI));
+        Assertions.assertEquals("RDB down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
         // KG reversion does not work //
         // Set-up stubbing
         Mockito.when(mockSparqlClient.getTimeSeries(dataIRI)).thenReturn("tsIRI");
@@ -330,11 +330,11 @@ public class TimeSeriesClientTest {
                 .insertTimeSeriesAssociation(Mockito.anyString(), Mockito.anyString());
         Mockito.doThrow(new JPSRuntimeException("RDB down")).when(mockRDBClient).deleteTimeSeries(dataIRI,
                 conn);
-        e = Assert.assertThrows(JPSRuntimeException.class,
+        e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteIndividualTimeSeries(dataIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("Inconsistent state created when deleting time series"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(dataIRI));
+        Assertions.assertTrue(e.getMessage().contains("Inconsistent state created when deleting time series"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(dataIRI));
     }
 
     @Test
@@ -344,11 +344,11 @@ public class TimeSeriesClientTest {
         Mockito.when(mockSparqlClient.checkTimeSeriesExists(tsIRI)).thenReturn(false);
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteTimeSeries(tsIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("does not exist in KG"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(tsIRI));
+        Assertions.assertTrue(e.getMessage().contains("does not exist in KG"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(tsIRI));
     }
 
     @Test
@@ -364,13 +364,13 @@ public class TimeSeriesClientTest {
         Mockito.doThrow(new JPSRuntimeException("KG down")).when(mockSparqlClient).removeTimeSeries(tsIRI);
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteTimeSeries(tsIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("was not deleted"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(tsIRI));
-        Assert.assertEquals("KG down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("was not deleted"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(tsIRI));
+        Assertions.assertEquals("KG down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
     }
 
     @Test
@@ -391,13 +391,13 @@ public class TimeSeriesClientTest {
                 dataIRIs.get(0),
                 conn);
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteTimeSeries(tsIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("was not deleted"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(tsIRI));
-        Assert.assertEquals("RDB down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("was not deleted"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(tsIRI));
+        Assertions.assertEquals("RDB down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
 
         // KG reversion does not work //
         // Set-up stubbing
@@ -413,11 +413,11 @@ public class TimeSeriesClientTest {
         Mockito.doThrow(new JPSRuntimeException("RDB down")).when(mockRDBClient).deleteEntireTimeSeries(
                 dataIRIs.get(0), conn);
 
-        e = Assert.assertThrows(JPSRuntimeException.class,
+        e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteTimeSeries(tsIRI, conn));
-        Assert.assertTrue(e.getMessage().contains("Inconsistent state created when deleting time series"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertTrue(e.getMessage().contains(tsIRI));
+        Assertions.assertTrue(e.getMessage().contains("Inconsistent state created when deleting time series"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertTrue(e.getMessage().contains(tsIRI));
     }
 
     @Test
@@ -427,12 +427,12 @@ public class TimeSeriesClientTest {
         Mockito.doThrow(new JPSRuntimeException("KG down")).when(mockSparqlClient).removeAllTimeSeries();
         setRDFMock();
 
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteAll(conn));
-        Assert.assertTrue(e.getMessage().contains("Not all timeseries were deleted from KG!"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertEquals("KG down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        Assertions.assertTrue(e.getMessage().contains("Not all timeseries were deleted from KG!"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertEquals("KG down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
 
         // RDB Exception //
         // Set-up stubbing
@@ -441,11 +441,11 @@ public class TimeSeriesClientTest {
         Mockito.doThrow(new JPSRuntimeException("RDB down")).when(mockRDBClient).deleteAll(conn);
         setRDBMock();
 
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks.deleteAll(conn));
-        Assert.assertTrue(e.getMessage().contains("Not all timeseries were deleted from database!"));
-        Assert.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
-        Assert.assertEquals("RDB down", e.getCause().getMessage());
-        Assert.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> testClientWithMocks.deleteAll(conn));
+        Assertions.assertTrue(e.getMessage().contains("Not all timeseries were deleted from database!"));
+        Assertions.assertTrue(e.getMessage().contains(testClientWithMocks.getClass().getSimpleName()));
+        Assertions.assertEquals("RDB down", e.getCause().getMessage());
+        Assertions.assertEquals(JPSRuntimeException.class, e.getCause().getClass());
     }
 
     @Test
@@ -456,9 +456,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).addTimeSeriesData(Mockito.any(),
                 Mockito.any(Connection.class));
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.addTimeSeriesData(mockTimeSeries, conn));
-        Assert.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
+        Assertions.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
     }
 
     @Test
@@ -471,9 +471,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).getTimeSeriesWithinBounds(Mockito.any(), Mockito.any(),
                 Mockito.any(), Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getTimeSeriesWithinBounds(dataIRIs, null, null, conn));
-        Assert.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
+        Assertions.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
     }
 
     @Test
@@ -485,9 +485,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).getTimeSeriesWithinBounds(Mockito.any(), Mockito.any(),
                 Mockito.any(), Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getTimeSeries(dataIRIs, conn));
-        Assert.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
+        Assertions.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
     }
 
     @Test
@@ -500,9 +500,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).getAggregate(Mockito.any(), Mockito.any(),
                 Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getAverage(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -515,9 +515,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).getAggregate(Mockito.any(), Mockito.any(),
                 Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getMaxValue(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -530,9 +530,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).getAggregate(Mockito.any(), Mockito.any(),
                 Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getMinValue(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -543,9 +543,9 @@ public class TimeSeriesClientTest {
         // Set-up stubbing
         Mockito.doCallRealMethod().when(mockRDBClient).getMaxTime(Mockito.any(), Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getMaxTime(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -556,9 +556,9 @@ public class TimeSeriesClientTest {
         // Set-up stubbing
         Mockito.doCallRealMethod().when(mockRDBClient).getMinTime(Mockito.any(), Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.getMinTime(dataIRIs.get(0), conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -571,9 +571,9 @@ public class TimeSeriesClientTest {
         Mockito.doCallRealMethod().when(mockRDBClient).deleteRows(Mockito.any(), Mockito.any(),
                 Mockito.any(), Mockito.any());
         setRDBMock();
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> testClientWithMocks.deleteTimeSeriesHistory(dataIRIs.get(0), null, null, conn));
-        Assert.assertTrue(e.getMessage().contains("Error while executing SQL command"));
+        Assertions.assertTrue(e.getMessage().contains("Error while executing SQL command"));
     }
 
     @Test
@@ -610,13 +610,13 @@ public class TimeSeriesClientTest {
 
         JSONObject ts_jo = ts_jarray.getJSONObject(0);
         List<String> keys = ts_jo.keySet().stream().collect(Collectors.toList());
-        Assert.assertTrue(keys.contains("data"));
-        Assert.assertTrue(keys.contains("values"));
-        Assert.assertTrue(keys.contains("timeClass"));
-        Assert.assertTrue(keys.contains("valuesClass"));
-        Assert.assertTrue(keys.contains("id"));
-        Assert.assertTrue(keys.contains("units"));
-        Assert.assertTrue(keys.contains("time"));
+        Assertions.assertTrue(keys.contains("data"));
+        Assertions.assertTrue(keys.contains("values"));
+        Assertions.assertTrue(keys.contains("timeClass"));
+        Assertions.assertTrue(keys.contains("valuesClass"));
+        Assertions.assertTrue(keys.contains("id"));
+        Assertions.assertTrue(keys.contains("units"));
+        Assertions.assertTrue(keys.contains("time"));
     }
 
     @Test
@@ -657,16 +657,16 @@ public class TimeSeriesClientTest {
 
         JSONObject ts_jo = ts_jarray.getJSONObject(0);
         List<String> keys = ts_jo.keySet().stream().collect(Collectors.toList());
-        Assert.assertTrue(keys.contains("data"));
-        Assert.assertTrue(keys.contains("values"));
-        Assert.assertTrue(keys.contains("timeClass"));
-        Assert.assertTrue(keys.contains("valuesClass"));
+        Assertions.assertTrue(keys.contains("data"));
+        Assertions.assertTrue(keys.contains("values"));
+        Assertions.assertTrue(keys.contains("timeClass"));
+        Assertions.assertTrue(keys.contains("valuesClass"));
         // Verify that valuesClass contains Unknown and twice Number
-        Assert.assertTrue(ts_jo.get("valuesClass").toString().contains("Unknown"));
-        Assert.assertEquals(3, ts_jo.get("valuesClass").toString().split("Number").length);
-        Assert.assertTrue(keys.contains("id"));
-        Assert.assertTrue(keys.contains("units"));
-        Assert.assertTrue(keys.contains("time"));
+        Assertions.assertTrue(ts_jo.get("valuesClass").toString().contains("Unknown"));
+        Assertions.assertEquals(3, ts_jo.get("valuesClass").toString().split("Number").length);
+        Assertions.assertTrue(keys.contains("id"));
+        Assertions.assertTrue(keys.contains("units"));
+        Assertions.assertTrue(keys.contains("time"));
     }
 
     private void setRDFMock() throws NoSuchFieldException, IllegalAccessException {

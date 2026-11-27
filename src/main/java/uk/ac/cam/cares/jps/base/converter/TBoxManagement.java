@@ -36,6 +36,7 @@ import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLOntologyStorageException;
+import org.semanticweb.owlapi.formats.RDFXMLDocumentFormat;
 import org.semanticweb.owlapi.vocab.OWL2Datatype;
 import org.slf4j.Logger;
 
@@ -1254,7 +1255,7 @@ public class TBoxManagement extends TBoxGeneration implements ITBoxManagement{
 					}
 				}
 			}
-			manager.saveOntology(ontology, manager.getOntologyFormat(ontology), IRI.create(file.toURI()));
+			manager.saveOntology(ontology, new RDFXMLDocumentFormat(), IRI.create(file.toURI()));
 			logger.info("The TBox has been saved at the path of " + owlFilePath);
 		} catch (OWLOntologyStorageException e) {
 			logger.error("The ontology could not be saved.");

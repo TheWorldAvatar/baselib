@@ -15,8 +15,8 @@ import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -69,12 +69,12 @@ public class DerivationOutputsTest {
 		long retrievedInputsAt = (long) _retrievedInputsAt.get(devOutputs);
 
 		// the retrieved value should be either empty of null
-		Assert.assertTrue(oldEntitiesMap.isEmpty());
-		Assert.assertTrue(oldEntitiesDownstreamDerivationMap.isEmpty());
-		Assert.assertTrue(newEntitiesMap.isEmpty());
-		Assert.assertTrue(outputTriples.isEmpty());
-		Assert.assertTrue(thisDerivation.isEmpty());
-		Assert.assertEquals(0, retrievedInputsAt);
+		Assertions.assertTrue(oldEntitiesMap.isEmpty());
+		Assertions.assertTrue(oldEntitiesDownstreamDerivationMap.isEmpty());
+		Assertions.assertTrue(newEntitiesMap.isEmpty());
+		Assertions.assertTrue(outputTriples.isEmpty());
+		Assertions.assertTrue(thisDerivation.isEmpty());
+		Assertions.assertEquals(0, retrievedInputsAt);
 	}
 
 	@Test
@@ -90,9 +90,9 @@ public class DerivationOutputsTest {
 		String thisDerivation = (String) _thisDerivation.get(devOutputs);
 
 		// the retrieved value should be equal to the one used for setter
-		Assert.assertEquals(derivation, thisDerivation);
+		Assertions.assertEquals(derivation, thisDerivation);
 		// also test the getter
-		Assert.assertEquals(derivation, devOutputs.getThisDerivation());
+		Assertions.assertEquals(derivation, devOutputs.getThisDerivation());
 	}
 
 	@Test
@@ -108,9 +108,9 @@ public class DerivationOutputsTest {
 		long retrievedInputsAt = (long) _retrievedInputsAt.get(devOutputs);
 
 		// the retrieved value should be equal to the one used for setter
-		Assert.assertEquals(timestamp, retrievedInputsAt);
+		Assertions.assertEquals(timestamp, retrievedInputsAt);
 		// also test the getter
-		Assert.assertEquals(timestamp, devOutputs.getRetrievedInputsAt());
+		Assertions.assertEquals(timestamp, devOutputs.getRetrievedInputsAt());
 	}
 
 	@Test
@@ -130,15 +130,15 @@ public class DerivationOutputsTest {
 		outputs.setAccessible(true);
 		Map<String, String> map = (Map<String, String>) outputs.get(devOutputs);
 		// the retrieved value should correctly processed the JSONObject
-		Assert.assertEquals(class1, map.get(instance1));
-		Assert.assertEquals(class2, map.get(instance2));
-		Assert.assertEquals(class3, map.get(instance3));
+		Assertions.assertEquals(class1, map.get(instance1));
+		Assertions.assertEquals(class2, map.get(instance2));
+		Assertions.assertEquals(class3, map.get(instance3));
 
 		// should fail if given wrong JSON structure
 		oldEntitiesRdfType.put("http://key", new JSONObject().put("http://key2", "http://value"));
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.setOldEntitiesMap(oldEntitiesRdfType));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.OLD_ENTITIES_MAP_ERROR + oldEntitiesRdfType.toString()));
 	}
 
@@ -159,9 +159,9 @@ public class DerivationOutputsTest {
 		outputs.setAccessible(true);
 		Map<String, String> map = (Map<String, String>) outputs.get(devOutputs);
 		// the retrieved value should correctly processed the JSONObject
-		Assert.assertEquals(class1, map.get(instance1));
-		Assert.assertEquals(class2, map.get(instance2));
-		Assert.assertEquals(class3, map.get(instance3));
+		Assertions.assertEquals(class1, map.get(instance1));
+		Assertions.assertEquals(class2, map.get(instance2));
+		Assertions.assertEquals(class3, map.get(instance3));
 	}
 
 	@Test
@@ -182,15 +182,15 @@ public class DerivationOutputsTest {
 		outputs.setAccessible(true);
 		Map<String, List<String>> map = (Map<String, List<String>>) outputs.get(devOutputs);
 		// the retrieved value should correctly processed the JSONObject
-		Assert.assertTrue(equalLists(Arrays.asList(derivation1_1, derivation1_2), map.get(instance1)));
-		Assert.assertTrue(equalLists(Arrays.asList(derivation2_1, derivation2_2, derivation2_3), map.get(instance2)));
-		Assert.assertTrue(equalLists(Arrays.asList(derivation3_1), map.get(instance3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation1_1, derivation1_2), map.get(instance1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation2_1, derivation2_2, derivation2_3), map.get(instance2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation3_1), map.get(instance3)));
 
 		// should fail if given wrong JSON structure
 		oldEntitiesDownstreamDerivation.put("http://key", new JSONObject().put("http://key2", "http://value"));
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.setOldEntitiesDownstreamDerivationMap(oldEntitiesDownstreamDerivation));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.OLD_ENTITIES_DOWNSTREAM_DERIVATION_MAP_ERROR
 						+ oldEntitiesDownstreamDerivation.toString()));
 	}
@@ -212,9 +212,9 @@ public class DerivationOutputsTest {
 		outputs.setAccessible(true);
 		Map<String, List<String>> map = (Map<String, List<String>>) outputs.get(devOutputs);
 		// the retrieved value should correctly processed the JSONObject
-		Assert.assertTrue(equalLists(Arrays.asList(derivation1_1, derivation1_2), map.get(instance1)));
-		Assert.assertTrue(equalLists(Arrays.asList(derivation2_1, derivation2_2, derivation2_3), map.get(instance2)));
-		Assert.assertTrue(equalLists(Arrays.asList(derivation3_1), map.get(instance3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation1_1, derivation1_2), map.get(instance1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation2_1, derivation2_2, derivation2_3), map.get(instance2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation3_1), map.get(instance3)));
 	}
 
 	@Test
@@ -256,14 +256,14 @@ public class DerivationOutputsTest {
 		String iri_new_2_3 = devOutputs.createNewEntityWithBaseUrl(baseUrl, prefix2 + rdfTypeClz);
 		// should throw an error if the provided rdf:type ends with "/" and nothing will
 		// be added
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.createNewEntityWithBaseUrl(baseUrl, prefix1 + rdfTypeClz + "/"));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_FOR_GET_CLASS_NAME_ERROR));
 		// same error should be thrown for rdf:type ending with "#"
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.createNewEntityWithBaseUrl(baseUrl, prefix1 + rdfTypeClz + "#"));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_FOR_GET_CLASS_NAME_ERROR));
 
 		Map<String, List<String>> entities = (Map<String, List<String>>) newentities.get(devOutputs);
@@ -271,43 +271,43 @@ public class DerivationOutputsTest {
 
 		// the retrieved values must be the same as the ones been added
 		// there are 5 rdf:type
-		Assert.assertEquals(5, entities.size());
-		Assert.assertTrue(equalLists(Arrays.asList(iri1_1, iri1_2), entities.get(rdfType1)));
-		Assert.assertTrue(equalLists(Arrays.asList(iri2_1, iri2_2, iri2_3), entities.get(rdfType2)));
-		Assert.assertTrue(equalLists(Arrays.asList(iri3_1), entities.get(rdfType3)));
-		Assert.assertTrue(equalLists(Arrays.asList(iri_new_1_1, iri_new_1_2), entities.get(prefix1 + rdfTypeClz)));
-		Assert.assertTrue(
+		Assertions.assertEquals(5, entities.size());
+		Assertions.assertTrue(equalLists(Arrays.asList(iri1_1, iri1_2), entities.get(rdfType1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(iri2_1, iri2_2, iri2_3), entities.get(rdfType2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(iri3_1), entities.get(rdfType3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(iri_new_1_1, iri_new_1_2), entities.get(prefix1 + rdfTypeClz)));
+		Assertions.assertTrue(
 				equalLists(Arrays.asList(iri_new_2_1, iri_new_2_2, iri_new_2_3), entities.get(prefix2 + rdfTypeClz)));
 
 		// there are 11 triples in total
-		Assert.assertEquals(11, triples.size());
-		Assert.assertEquals(formulateTripleString(iri1_1, RDF.TYPE.toString(), rdfType1),
+		Assertions.assertEquals(11, triples.size());
+		Assertions.assertEquals(formulateTripleString(iri1_1, RDF.TYPE.toString(), rdfType1),
 				triples.get(0).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri1_2, RDF.TYPE.toString(), rdfType1),
+		Assertions.assertEquals(formulateTripleString(iri1_2, RDF.TYPE.toString(), rdfType1),
 				triples.get(1).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri2_1, RDF.TYPE.toString(), rdfType2),
+		Assertions.assertEquals(formulateTripleString(iri2_1, RDF.TYPE.toString(), rdfType2),
 				triples.get(2).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri2_2, RDF.TYPE.toString(), rdfType2),
+		Assertions.assertEquals(formulateTripleString(iri2_2, RDF.TYPE.toString(), rdfType2),
 				triples.get(3).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri2_3, RDF.TYPE.toString(), rdfType2),
+		Assertions.assertEquals(formulateTripleString(iri2_3, RDF.TYPE.toString(), rdfType2),
 				triples.get(4).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri3_1, RDF.TYPE.toString(), rdfType3),
+		Assertions.assertEquals(formulateTripleString(iri3_1, RDF.TYPE.toString(), rdfType3),
 				triples.get(5).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri_new_1_1, RDF.TYPE.toString(), prefix1 + rdfTypeClz),
+		Assertions.assertEquals(formulateTripleString(iri_new_1_1, RDF.TYPE.toString(), prefix1 + rdfTypeClz),
 				triples.get(6).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri_new_1_2, RDF.TYPE.toString(), prefix1 + rdfTypeClz),
+		Assertions.assertEquals(formulateTripleString(iri_new_1_2, RDF.TYPE.toString(), prefix1 + rdfTypeClz),
 				triples.get(7).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri_new_2_1, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
+		Assertions.assertEquals(formulateTripleString(iri_new_2_1, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
 				triples.get(8).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri_new_2_2, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
+		Assertions.assertEquals(formulateTripleString(iri_new_2_2, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
 				triples.get(9).getQueryString());
-		Assert.assertEquals(formulateTripleString(iri_new_2_3, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
+		Assertions.assertEquals(formulateTripleString(iri_new_2_3, RDF.TYPE.toString(), prefix2 + rdfTypeClz),
 				triples.get(10).getQueryString());
 
 		// test getNewDerivedIRI
 		List<String> allInstances = Arrays.asList(iri1_1, iri1_2, iri2_1, iri2_2, iri2_3, iri3_1, iri_new_1_1,
 				iri_new_1_2, iri_new_2_1, iri_new_2_2, iri_new_2_3);
-		Assert.assertTrue(equalLists(allInstances, devOutputs.getNewDerivedIRI()));
+		Assertions.assertTrue(equalLists(allInstances, devOutputs.getNewDerivedIRI()));
 
 		Map<String, String> iriRdfTypeMap = new HashMap<>();
 		iriRdfTypeMap.put(iri1_1, rdfType1);
@@ -325,7 +325,7 @@ public class DerivationOutputsTest {
 		// test getNewEntitiesJsonMap
 		JSONObject newEntitiesJson = devOutputs.getNewEntitiesJsonMap();
 		allInstances.stream()
-				.forEach(iri -> Assert.assertEquals(iriRdfTypeMap.get(iri), newEntitiesJson.getString(iri)));
+				.forEach(iri -> Assertions.assertEquals(iriRdfTypeMap.get(iri), newEntitiesJson.getString(iri)));
 	}
 
 	@Test
@@ -421,54 +421,54 @@ public class DerivationOutputsTest {
 
 		List<TriplePattern> triples = (List<TriplePattern>) outputs.get(devOutputs);
 		// the amount of triples added must be correct, also the content must be correct
-		Assert.assertEquals(15, triples.size());
-		Assert.assertEquals(formulateTripleString(s0, p0, o0), triples.get(0).getQueryString());
-		Assert.assertEquals(formulateTripleString(s1, p1, o1), triples.get(1).getQueryString());
-		Assert.assertEquals(formulateTripleString(s2, p2, o2), triples.get(2).getQueryString());
-		Assert.assertEquals(formulateTripleString(s3, p3, o3), triples.get(3).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s4, p4, o4), triples.get(4).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s5, p5, o5), triples.get(5).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s6, p6, o6), triples.get(6).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s7, p7, o7), triples.get(7).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s8, p8, o8), triples.get(8).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s9, p9, o9, dataType), triples.get(9).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s10, p10, o10), triples.get(10).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s11, p11, o11), triples.get(11).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s12, p12, o12), triples.get(12).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s13, p13, o13), triples.get(13).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s14, p14, o14), triples.get(14).getQueryString());
+		Assertions.assertEquals(15, triples.size());
+		Assertions.assertEquals(formulateTripleString(s0, p0, o0), triples.get(0).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s1, p1, o1), triples.get(1).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s2, p2, o2), triples.get(2).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s3, p3, o3), triples.get(3).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s4, p4, o4), triples.get(4).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s5, p5, o5), triples.get(5).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s6, p6, o6), triples.get(6).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s7, p7, o7), triples.get(7).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s8, p8, o8), triples.get(8).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s9, p9, o9, dataType), triples.get(9).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s10, p10, o10), triples.get(10).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s11, p11, o11), triples.get(11).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s12, p12, o12), triples.get(12).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s13, p13, o13), triples.get(13).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s14, p14, o14), triples.get(14).getQueryString());
 
 		// test the getter
 		List<TriplePattern> triplesFromGetter = devOutputs.getOutputTriples();
-		Assert.assertEquals(15, triplesFromGetter.size());
-		Assert.assertEquals(formulateTripleString(s0, p0, o0), triplesFromGetter.get(0).getQueryString());
-		Assert.assertEquals(formulateTripleString(s1, p1, o1), triplesFromGetter.get(1).getQueryString());
-		Assert.assertEquals(formulateTripleString(s2, p2, o2), triplesFromGetter.get(2).getQueryString());
-		Assert.assertEquals(formulateTripleString(s3, p3, o3), triplesFromGetter.get(3).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s4, p4, o4), triplesFromGetter.get(4).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s5, p5, o5), triplesFromGetter.get(5).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s6, p6, o6), triplesFromGetter.get(6).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s7, p7, o7), triplesFromGetter.get(7).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s8, p8, o8), triplesFromGetter.get(8).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s9, p9, o9, dataType), triplesFromGetter.get(9).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s10, p10, o10), triplesFromGetter.get(10).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s11, p11, o11), triplesFromGetter.get(11).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s12, p12, o12), triplesFromGetter.get(12).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s13, p13, o13), triplesFromGetter.get(13).getQueryString());
-		Assert.assertEquals(formulateLiteralTripleString(s14, p14, o14), triplesFromGetter.get(14).getQueryString());
+		Assertions.assertEquals(15, triplesFromGetter.size());
+		Assertions.assertEquals(formulateTripleString(s0, p0, o0), triplesFromGetter.get(0).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s1, p1, o1), triplesFromGetter.get(1).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s2, p2, o2), triplesFromGetter.get(2).getQueryString());
+		Assertions.assertEquals(formulateTripleString(s3, p3, o3), triplesFromGetter.get(3).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s4, p4, o4), triplesFromGetter.get(4).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s5, p5, o5), triplesFromGetter.get(5).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s6, p6, o6), triplesFromGetter.get(6).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s7, p7, o7), triplesFromGetter.get(7).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s8, p8, o8), triplesFromGetter.get(8).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s9, p9, o9, dataType), triplesFromGetter.get(9).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s10, p10, o10), triplesFromGetter.get(10).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s11, p11, o11), triplesFromGetter.get(11).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s12, p12, o12), triplesFromGetter.get(12).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s13, p13, o13), triplesFromGetter.get(13).getQueryString());
+		Assertions.assertEquals(formulateLiteralTripleString(s14, p14, o14), triplesFromGetter.get(14).getQueryString());
 
 		// now we add triples/literals that with invalid IRIs
 		// should throw an error
 		String sInvalidIRI = "http://" + "this string contains space therefore invalid" + UUID.randomUUID().toString();
 		String pInvalidIRI = "http://" + "this string contains space therefore invalid" + UUID.randomUUID().toString();
 		String oInvalidIRI = "http://" + "this string contains space therefore invalid" + UUID.randomUUID().toString();
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.addTriple(sInvalidIRI, pInvalidIRI, oInvalidIRI));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_FOR_ADDING_TRIPLE));
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devOutputs.addLiteral(sInvalidIRI, pInvalidIRI, oInvalidIRI));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_FOR_ADDING_LITERAL));
 
 		// if the subject and preficate are valid, then it should be able to be added as literal even the object is not valid IRI
@@ -487,14 +487,14 @@ public class DerivationOutputsTest {
 		outputs.checkIfValidIri(Arrays.asList(http, https, "<" + http + ">", "<" + https + ">"));
 
 		// should throw error if not valid IRI
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> outputs.checkIfValidIri(Arrays.asList(http, p)));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_ERROR));
 
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> outputs.checkIfValidIri(Arrays.asList(http, cmt)));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationOutputs.INVALID_IRI_ERROR));
 	}
 

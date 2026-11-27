@@ -6,18 +6,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.postgis.Point;
-import org.postgis.Polygon;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
 
+import net.postgis.jdbc.geometry.Point;
+import net.postgis.jdbc.geometry.Polygon;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
 
@@ -34,7 +33,7 @@ public class TimeSeriesPostGISIntegrationTest {
     protected TimeSeriesRDBClientInterface<Integer> tsClient;
     private static RemoteRDBStoreClient rdbStoreClient;
 
-    @BeforeClass
+    @BeforeAll
     // Initialise RemoteRDBStoreClient before any test
     public static void initialiseRDBStoreClient() {
         postgres.start();
@@ -42,7 +41,7 @@ public class TimeSeriesPostGISIntegrationTest {
         rdbStoreClient = new RemoteRDBStoreClient(postgres.getJdbcUrl(), user, password);
     }
 
-    @Before
+    @BeforeEach
     public void initialiseRDBClient() {
         setRdbClient();
     }
@@ -72,7 +71,7 @@ public class TimeSeriesPostGISIntegrationTest {
             TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"),
                     values);
             // upload to database
-            Assert.assertThrows(JPSRuntimeException.class,
+            Assertions.assertThrows(JPSRuntimeException.class,
                     () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload), conn));
         }
     }
@@ -96,7 +95,7 @@ public class TimeSeriesPostGISIntegrationTest {
             TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"),
                     values);
             // upload to database
-            Assert.assertThrows(JPSRuntimeException.class,
+            Assertions.assertThrows(JPSRuntimeException.class,
                     () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload), conn));
         }
     }
@@ -125,11 +124,11 @@ public class TimeSeriesPostGISIntegrationTest {
             // query and check if it's the same
             Point queriedPoint = tsClient.getTimeSeries(Arrays.asList("http://data1"), conn)
                     .getValuesAsPoint("http://data1").get(0);
-            Assert.assertTrue(queriedPoint.equals(point));
+            Assertions.assertTrue(queriedPoint.equals(point));
         }
     }
 
-    @After
+    @AfterEach
     // Clear all tables after each test to ensure clean slate
     public void clearDatabase() throws SQLException {
         try (Connection conn = rdbStoreClient.getConnection()) {

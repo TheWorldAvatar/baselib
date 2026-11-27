@@ -16,7 +16,7 @@ Both classes support a time series to consist of several individual (but related
 Initialising any new time series using the `TimeSeriesClient` creates all required relationships in the KG as well as corresponding table(s) in the RDB. Adding or deleting time series data only adds or deletes data points in the RDB. Deleting time series via the `TimeSeriesClient` deletes all associated relationships from the KG as well as corresponding table(s) in the RDB. Detailed descriptions of particular functions are provided in the respective docstrings. 
 
 ## Note on PostGIS support
-The TimeSeriesClient supports storing and querying geometries in PostGIS by providing objects of org.postgis.Geometry. You must ensure that the PostGIS extension is enabled in PostgreSQL to use this.
+The TimeSeriesClient supports storing and querying geometries in PostGIS by providing objects of `net.postgis.jdbc.geometry.Geometry`. You must ensure that the PostGIS extension is enabled in PostgreSQL to use this.
 
 ## Schema specification
 It is possible to store time series data in a separate schema through the method TimeSeriesClient.setRDBSchema(String schema). If this is not set, the TimeSeriesClient defaults to the "public" schema.
@@ -235,7 +235,7 @@ Due to the way different time series share the same table, there may be a lot of
 
 ### Instantiation in RDB using TimeSeriesRDBClientOntop
 
-Time series data are stored in the format that is suitable for Ontop, one column is assigned for data type, four data types are pre-initialised - `java.lang.Double`, `java.lang.Integer`, `org.postgis.Point` and `String`. Any data types that are not within these classes will be added, but will not be available via Ontop. The time class should be either numeric (e.g. subclass of Number) or a time stamp type (e.g. Instant, OffsetDateTime, ZonedDateTime, LocalDateTime).
+Time series data are stored in the format that is suitable for Ontop, one column is assigned for data type, four data types are pre-initialised - `java.lang.Double`, `java.lang.Integer`, `net.postgis.jdbc.geometry.Point` and `String`. Any data types that are not within these classes will be added, but will not be available via Ontop. The time class should be either numeric (e.g. subclass of Number) or a time stamp type (e.g. Instant, OffsetDateTime, ZonedDateTime, LocalDateTime).
 
 This class is designed to be used via `com.cmclinnovations.stack.clients.timeseries.TimeSeriesRDBClient`, which includes functionalities to spin up a new Ontop container, otherwise it can still work but without the Ontop functionality.
 

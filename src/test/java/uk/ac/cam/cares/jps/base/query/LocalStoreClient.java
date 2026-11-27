@@ -5,7 +5,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.Iterator;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.jena.arq.querybuilder.ConstructBuilder;
 import org.apache.jena.arq.querybuilder.UpdateBuilder;
 import org.apache.jena.query.Dataset;

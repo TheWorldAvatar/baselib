@@ -139,7 +139,7 @@ public class TimeSeriesClientIntegrationTest {
     private static void clearDatabase() throws SQLException {
         try (Connection conn = rdbStoreClient.getConnection()) {
             DSLContext context = DSL.using(conn, SQLDialect.POSTGRES);
-            List<Table<?>> tables = context.meta().getTables();
+            List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
             for (Table<?> table : tables) {
                 context.dropTable(table).cascade().execute();
             }

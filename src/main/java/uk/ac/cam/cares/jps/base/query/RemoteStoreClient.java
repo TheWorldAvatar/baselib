@@ -19,15 +19,15 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.FileEntity;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpHeaders;
+import org.apache.hc.core5.http.io.entity.FileEntity;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.jena.arq.querybuilder.ConstructBuilder;
 import org.apache.jena.arq.querybuilder.UpdateBuilder;
 import org.apache.jena.jdbc.JenaDriver;
@@ -170,9 +170,10 @@ public class RemoteStoreClient implements TripleStoreClientInterface {
         remoteStores.put(DEFAULT_REMOTE_STORE_NAME, new RemoteStore(DEFAULT_REMOTE_STORE_NAME));
     }
 
-    ///////////////////////////
+    /////////////////////////
     // Constructors
-    ///////////////////////////
+    /////////////////////////
+
     /**
      * The default constructor.
      */
@@ -387,9 +388,10 @@ public class RemoteStoreClient implements TripleStoreClientInterface {
         return false;
     }
 
-    ///////////////////////////
+    /////////////////////////
     // Sparql query and update
-    ///////////////////////////
+    /////////////////////////
+
     /**
      * Executes the update operation that is provided through the constructors or
      * setter method.
@@ -841,7 +843,10 @@ public class RemoteStoreClient implements TripleStoreClientInterface {
         }
         FileEntity entity = new FileEntity(file, contentType);
 
-        uploadByPostEntity(entity, "Upload RDF file");
+        try (CloseableHttpResponse _ = uploadByPostEntity(entity, "Upload RDF file")) {
+        } catch (IOException e) {
+            throw new JPSRuntimeException("RDF file upload failed", e);
+        }
 
     }
 
@@ -865,7 +870,10 @@ public class RemoteStoreClient implements TripleStoreClientInterface {
     @Override
     public void uploadTriples(String triples, String extension) {
         HttpEntity entity = new StringEntity(triples, getRDFContentType(extension));
-        uploadByPostEntity(entity, "Upload triples");
+        try (CloseableHttpResponse _ = uploadByPostEntity(entity, "Upload triples")) {
+        } catch (IOException e) {
+            throw new JPSRuntimeException("Triple upload failed", e);
+        }
     }
 
     CloseableHttpResponse uploadByPostEntity(HttpEntity entity, String description) {
@@ -891,7 +899,7 @@ public class RemoteStoreClient implements TripleStoreClientInterface {
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             // the returned CloseableHttpResponse should be handled with try-with-resources
             CloseableHttpResponse response = httpClient.execute(postRequest);
-            int statusCode = response.getStatusLine().getStatusCode();
+            int statusCode = response.getCode();
             if (statusCode < 200 || statusCode > 300) {
                 throw new JPSRuntimeException(
                         description + " failed. Response status code = " + statusCode);

@@ -15,13 +15,12 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.rdf4j.rio.RDFFormat;
@@ -46,16 +45,18 @@ public class StreamInserter {
                                 ContentType.create(RDFFormat.TURTLE.getDefaultMIMEType()));
                         httpPost.setEntity(entity);
 
-                        try (CloseableHttpClient httpClient = HttpClients.createDefault();
-                                CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                            String responseBody = IOUtils.toString(response.getEntity().getContent(),
-                                    StandardCharsets.UTF_8);
-                            if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-                                throw new RuntimeException(
-                                        "Failed to insert triples into '" + updateEndpointURL + "':\n"
-                                                + response.getStatusLine().getReasonPhrase() + "\n" + responseBody);
-                            }
-                            return responseBody;
+                        try (CloseableHttpClient httpClient = HttpClients.createDefault();) {
+                            return httpClient.execute(httpPost, response -> {
+                                String responseBody = IOUtils.toString(response.getEntity().getContent(),
+                                        StandardCharsets.UTF_8);
+                                if (response.getCode() != HttpStatus.SC_OK) {
+                                    throw new RuntimeException(
+                                            "Failed to insert triples into '" + updateEndpointURL + "':\n"
+                                                    + response.getReasonPhrase() + "\n" + responseBody);
+                                }
+                                return responseBody;
+                            });
+
                         } catch (IOException ex) {
                             throw new UncheckedIOException("Error inserting triples into '" + updateEndpointURL + "''.",
                                     ex);

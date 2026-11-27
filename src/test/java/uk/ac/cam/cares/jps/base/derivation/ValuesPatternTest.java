@@ -14,13 +14,12 @@ import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfObject;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfLiteral.BooleanLiteral;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfLiteral.NumericLiteral;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfLiteral.StringLiteral;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import junit.framework.TestCase;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
-public class ValuesPatternTest extends TestCase {
+public class ValuesPatternTest {
     static ValuesPattern valuesPattern;
     // string literals
     static Variable var1 = SparqlBuilder.var("var1");
@@ -71,7 +70,7 @@ public class ValuesPatternTest extends TestCase {
 	public void testConstructor1() {
         // constructor ValuesPattern(Variable, RdfObject...)
         valuesPattern = new ValuesPattern(var1, var1Value1, var1Value2);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 )   { (\"http://var1Value1\") (\"var1Value2\") }",
             valuesPattern.getQueryString().trim());
     }
@@ -80,7 +79,7 @@ public class ValuesPatternTest extends TestCase {
     public void testConstructor2() {
         // constructor ValuesPattern(Variable, List<RdfObject>)
         valuesPattern = new ValuesPattern(var1, new ArrayList<RdfObject>(Arrays.asList(var1Value1, var1Value2)));
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 )   { (\"http://var1Value1\") (\"var1Value2\") }",
             valuesPattern.getQueryString().trim());
     }
@@ -89,7 +88,7 @@ public class ValuesPatternTest extends TestCase {
     public void testConstructor3() {
         // constructor ValuesPattern(List<Variable>, List<RdfObject[]>)
         valuesPattern = new ValuesPattern(varList, valuePairs);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 ?var2 ?var3 ?var4 ?var5 )   { (\"http://var1Value1\" <http://var2Value1> 1 1.1 true) (\"var1Value2\" <http://var2Value2> 2 2.2 false) }",
             valuesPattern.getQueryString().trim());
     }
@@ -98,7 +97,7 @@ public class ValuesPatternTest extends TestCase {
     public void testConstructor4() {
         // constructor ValuesPattern(Variable...)
         valuesPattern = new ValuesPattern(var1, var2, var3, var4, var5);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 ?var2 ?var3 ?var4 ?var5 )   { }",
             valuesPattern.getQueryString().trim());
     }
@@ -106,15 +105,15 @@ public class ValuesPatternTest extends TestCase {
     @Test
     public void testAddValuePairForMultipleVariables() {
         valuesPattern = new ValuesPattern(var1, var2, var3, var4, var5);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 ?var2 ?var3 ?var4 ?var5 )   { }",
             valuesPattern.getQueryString().trim());
         valuesPattern.addValuePairForMultipleVariables(var1Value1, var2Value1, var3Value1, var4Value1, var5Value1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 ?var2 ?var3 ?var4 ?var5 )   { (\"http://var1Value1\" <http://var2Value1> 1 1.1 true) }",
             valuesPattern.getQueryString().trim());
         valuesPattern.addValuePairForMultipleVariables(var1Value2, var2Value2, var3Value2, var4Value2, var5Value2);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 ?var2 ?var3 ?var4 ?var5 )   { (\"http://var1Value1\" <http://var2Value1> 1 1.1 true) (\"var1Value2\" <http://var2Value2> 2 2.2 false) }",
             valuesPattern.getQueryString().trim());
     }
@@ -122,13 +121,13 @@ public class ValuesPatternTest extends TestCase {
     @Test
     public void testSpecialNumberEscape() {
         valuesPattern = new ValuesPattern(var6, var6Value1, var6Value2, var6Value3);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var6 )   { (\"Infinity\"^^<http://www.w3.org/2001/XMLSchema#double>) (\"-Infinity\"^^<http://www.w3.org/2001/XMLSchema#double>) (\"NaN\"^^<http://www.w3.org/2001/XMLSchema#double>) }",
             valuesPattern.getQueryString().trim());
 
         // Infinity/-Infinity/NaN as string literals will not be escaped, i.e. they will be treated as string literals
         valuesPattern = new ValuesPattern(var7, var7Value1, var7Value2, var7Value3);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var7 )   { (\"Infinity\") (\"-Infinity\") (\"NaN\") }",
             valuesPattern.getQueryString().trim());
     }
@@ -138,25 +137,25 @@ public class ValuesPatternTest extends TestCase {
         // test exception - ILLEGAL_INIT_ARG_ERROR_MSG
         List<RdfObject[]> valuePairsIncorrectLength = new ArrayList<>();
         valuePairsIncorrectLength.add(new RdfObject[] {var1Value1, var2Value1, var3Value1, var4Value1});
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> new ValuesPattern(varList, valuePairsIncorrectLength));
-		Assert.assertTrue(e.getMessage().contains(ValuesPattern.ILLEGAL_INIT_ARG_ERROR_MSG));
+		Assertions.assertTrue(e.getMessage().contains(ValuesPattern.ILLEGAL_INIT_ARG_ERROR_MSG));
 
         // test exception - ILLEGAL_VALUEPAIR_ERROR_MSG
         valuesPattern = new ValuesPattern(var1, var2, var3, var4, var5);
-        JPSRuntimeException e2 = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e2 = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> valuesPattern.addValuePairForMultipleVariables(var1Value1, var2Value1, var3Value1, var4Value1));
-        Assert.assertTrue(e2.getMessage().contains(ValuesPattern.ILLEGAL_VALUEPAIR_ERROR_MSG));
+        Assertions.assertTrue(e2.getMessage().contains(ValuesPattern.ILLEGAL_VALUEPAIR_ERROR_MSG));
     }
 
     @Test
     public void testGraphPatternsUnion() {
         GraphPattern graphPattern = Rdf.iri("http://s").has(Rdf.iri("http://p"), Rdf.iri("http://o"));
         valuesPattern = new ValuesPattern(var1, var1Value1, var1Value2);
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "VALUES ( ?var1 )   { (\"http://var1Value1\") (\"var1Value2\") }",
             valuesPattern.getQueryString().trim());
-        Assert.assertEquals(
+        Assertions.assertEquals(
             "{ <http://s> <http://p> <http://o> . } UNION {  VALUES ( ?var1 )   { (\"http://var1Value1\") (\"var1Value2\") }  }",
             GraphPatterns.union(graphPattern, valuesPattern).getQueryString().trim());
     }

@@ -1,5 +1,8 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -14,21 +17,16 @@ import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
 import org.mockito.Mockito;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.containers.PostgreSQLContainer;
 
-import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
-import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
 import uk.ac.cam.cares.jps.base.BlazegraphContainer;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
-
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
+import uk.ac.cam.cares.jps.base.query.RemoteRDBStoreClient;
+import uk.ac.cam.cares.jps.base.query.RemoteStoreClient;
 
 /**
  * This class provides integration tests for the TimeSeriesClient class,
@@ -131,7 +129,7 @@ public class TimeSeriesClientIntegrationWithoutConnTest {
     private static void clearDatabase() throws SQLException {
         try (Connection conn = rdbStoreClient.getConnection()) {
             DSLContext context = DSL.using(conn, SQLDialect.POSTGRES);
-            List<Table<?>> tables = context.meta().getTables();
+            List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
             for (Table<?> table : tables) {
                 context.dropTable(table).cascade().execute();
             }

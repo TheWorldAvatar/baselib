@@ -1,6 +1,6 @@
 package uk.ac.cam.cares.jps.base.util;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -13,10 +13,10 @@ import javax.sql.rowset.serial.SerialException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 
 /**
@@ -25,7 +25,7 @@ import org.mockito.runners.MockitoJUnitRunner;
  * @author Karthik
  *
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class StoreClientHelperTest {
 
     /**
@@ -39,7 +39,7 @@ public class StoreClientHelperTest {
 
     private java.sql.Array marr;
 
-    @Before
+    @BeforeEach
     public void setUp() throws SerialException,SQLException {
         rs = mock(java.sql.ResultSet.class);
         rsmd = mock(java.sql.ResultSetMetaData.class);

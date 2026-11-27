@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.jooq.impl.DefaultDataType;
-import org.postgis.Geometry;
+import net.postgis.jdbc.geometry.Geometry;
 
 /**
  * used internally in TimeSeriesRDBClientWithReducedTables to keep track of the

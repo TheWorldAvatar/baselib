@@ -16,6 +16,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.eclipse.rdf4j.model.vocabulary.OWL;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
+import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.eclipse.rdf4j.sparqlbuilder.constraint.Expression;
 import org.eclipse.rdf4j.sparqlbuilder.constraint.Expressions;
 import org.eclipse.rdf4j.sparqlbuilder.core.Prefix;
@@ -33,17 +41,9 @@ import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Iri;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.RdfPredicate;
-import org.eclipse.rdf4j.model.vocabulary.OWL;
-import org.eclipse.rdf4j.model.vocabulary.RDFS;
-import org.eclipse.rdf4j.model.vocabulary.XSD;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.apache.http.ParseException;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 import uk.ac.cam.cares.jps.base.interfaces.StoreClientInterface;
@@ -1916,7 +1916,7 @@ public class DerivationSparql {
 				// query, this is to avoid the situation where the inputs of the derivation are too many thus the triple
 				// store execute the two blocks of query separately and then join them together, which is observed to
 				// crash the triple store
-				GraphPattern derivationBindPattern = new Bind(derivationPreBind, derivation);
+				GraphPattern derivationBindPattern = Expressions.bind(derivationPreBind, derivation);
 				query.where(rootDerivationPattern, derivationBindPattern);
 			} else {
 				ValuesPattern rootDerivationPattern = new ValuesPattern(derivation,
@@ -2492,7 +2492,7 @@ public class DerivationSparql {
 				if (((RemoteStoreClient) storeClient).isUpdateEndpointBlazegraphBackended()) {
 					try (CloseableHttpResponse httpResponse = ((RemoteStoreClient) storeClient)
 							.executeUpdateByPost(sparqlUpdate)) {
-						if (httpResponse.getStatusLine().getStatusCode() != 204 && httpResponse.getEntity() != null) {
+						if (httpResponse.getCode() != 204 && httpResponse.getEntity() != null) {
 							String html = EntityUtils.toString(httpResponse.getEntity());
 							Pattern pattern = Pattern.compile("mutationCount=([0-9]+)");
 							Matcher matcher = pattern.matcher(html);

@@ -1,5 +1,7 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import static org.jooq.impl.DSL.selectFrom;
+
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -10,12 +12,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
 
-import org.junit.*;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
-import static org.jooq.impl.DSL.selectFrom;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -63,7 +69,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
     private static List<List<?>> dataToAdd_1;
     private static List<List<?>> dataToAdd_2;
 
-    @BeforeClass
+    @BeforeAll
     // Connect to the database before any test (will spin up the Docker container
     // for the database)
     public static void connect() throws SQLException, ClassNotFoundException {
@@ -73,13 +79,13 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         conn = DriverManager.getConnection(dbURL, user, password);
         context = DSL.using(conn, SQLDialect.POSTGRES);
         // Clear database
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
     }
 
-    @BeforeClass
+    @BeforeAll
     // Initialise 3 test time series data sets
     public static void initialiseData() {
         /*
@@ -171,13 +177,13 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         ts_list3.add(ts3);
     }
 
-    @AfterClass
+    @AfterAll
     // Disconnect from the database after all tests are run
     public static void disconnect() throws SQLException {
         conn.close();
     }
 
-    @Before
+    @BeforeEach
     public void initialiseRDBClient() {
         // Set up TimeSeriesRDBClient to interact with RDB (PostgreSQL)
         // One must specify the class of the time values, these tests uses the Instant
@@ -195,10 +201,10 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         client = new TimeSeriesRDBClient<>(Instant.class);
     }
 
-    @After
+    @AfterEach
     // Clear all tables after each test to ensure clean slate
     public void clearDatabase() {
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
@@ -213,12 +219,12 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         String tableName = (String) tableNameField.get(client);
 
         // Check that no central table exists
-        Assert.assertEquals(0, context.meta().getTables(tableName).size());
+        Assertions.assertEquals(0, context.meta().getTables(tableName).size());
         // Initialise arbitrary time series table (initCentralTable shall be created
         // internally)
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         // Check that central table was created
-        Assert.assertEquals(1, context.meta().getTables(tableName).size());
+        Assertions.assertEquals(1, context.meta().getTables(tableName).size());
     }
 
     @Test
@@ -226,19 +232,19 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         // Check exception for wrong dataClass size
         try {
             client.initTimeSeriesTable(dataIRI_1, dataClass_3, tsIRI_1);
-            Assert.fail();
+            Assertions.fail();
         } catch (JPSRuntimeException e) {
-            Assert.assertEquals(JPSRuntimeException.class, e.getClass());
-            Assert.assertTrue(e.getMessage().contains("Length of dataClass is different from number of data IRIs"));
+            Assertions.assertEquals(JPSRuntimeException.class, e.getClass());
+            Assertions.assertTrue(e.getMessage().contains("Length of dataClass is different from number of data IRIs"));
         }
         // Check exception for already initialised dataIRIs
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         try {
             client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_3);
-            Assert.fail();
+            Assertions.fail();
         } catch (JPSRuntimeException e) {
-            Assert.assertEquals(JPSRuntimeException.class, e.getClass());
-            Assert.assertTrue(
+            Assertions.assertEquals(JPSRuntimeException.class, e.getClass());
+            Assertions.assertTrue(
                     e.getMessage().contains("<" + dataIRI_1.get(0) + "> already has an assigned time series instance"));
         }
     }
@@ -248,7 +254,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         // Initialise 1st time series
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         // Check that timeseries table was created in addition to central table
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assertions.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Retrieve the value of the private field 'dbTableName' of the client to check
         // its value
@@ -267,18 +273,18 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
 
         // Check that there is a row for each data IRI in the central table
         for (String iri : dataIRI_1) {
-            Assert.assertTrue(context.fetchExists(selectFrom(table).where(dataIRIcolumn.eq(iri))));
+            Assertions.assertTrue(context.fetchExists(selectFrom(table).where(dataIRIcolumn.eq(iri))));
         }
         // Check that all data IRIs are connected to same timeseries IRI
         List<String> queryResult = context.select(tsIRIcolumn).from(table).where(dataIRIcolumn.eq(dataIRI_1.get(0)))
                 .fetch(tsIRIcolumn);
         String tsIRI = queryResult.get(0);
         // Verify correct time series IRI
-        Assert.assertEquals(tsIRI, tsIRI_1);
+        Assertions.assertEquals(tsIRI, tsIRI_1);
         for (String iri : dataIRI_1) {
             String curTsIRI = context.select(tsIRIcolumn).from(table).where(dataIRIcolumn.eq(iri)).fetch(tsIRIcolumn)
                     .get(0);
-            Assert.assertEquals(tsIRI, curTsIRI);
+            Assertions.assertEquals(tsIRI, curTsIRI);
         }
 
         // Initialise 2nd time series
@@ -288,7 +294,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         dataIRIs.addAll(dataIRI_3);
         // Check that there is (still) a row for each data IRI in the central table
         for (String iri : dataIRIs) {
-            Assert.assertTrue(context.fetchExists(selectFrom(table).where(dataIRIcolumn.eq(iri))));
+            Assertions.assertTrue(context.fetchExists(selectFrom(table).where(dataIRIcolumn.eq(iri))));
         }
     }
 
@@ -304,10 +310,10 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         TimeSeries<Instant> queriedTimeSeries = client.getTimeSeries(dataIRI_1);
         for (int i = 0; i < dataIRI_1.size(); i++) {
             // Check data types
-            Assert.assertEquals(dataClass_1.get(i),
+            Assertions.assertEquals(dataClass_1.get(i),
                     queriedTimeSeries.getValues(dataIRI_1.get(i)).get(0).getClass());
             // Check array content
-            Assert.assertEquals(ts_list1.get(0).getValues(dataIRI_1.get(i)),
+            Assertions.assertEquals(ts_list1.get(0).getValues(dataIRI_1.get(i)),
                     queriedTimeSeries.getValues(dataIRI_1.get(i)));
         }
 
@@ -320,19 +326,19 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
             combinedList = new ArrayList<>();
             combinedList.addAll((List) dataToAdd_1.get(i));
             combinedList.addAll((List) dataToAdd_2.get(i));
-            Assert.assertEquals(combinedList, queriedTimeSeries2.getValues(dataIRI_1.get(i)));
+            Assertions.assertEquals(combinedList, queriedTimeSeries2.getValues(dataIRI_1.get(i)));
         }
     }
 
     @Test
     public void testAddTimeseriesDataExceptions() {
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> client.addTimeSeriesData(ts_list1));
-        Assert.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
+        Assertions.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
 
         client.initTimeSeriesTable(dataIRI_3, dataClass_3, tsIRI_3);
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> client.addTimeSeriesData(ts_list1));
-        Assert.assertTrue(e.getMessage().contains("does not have an assigned time series instance"));
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> client.addTimeSeriesData(ts_list1));
+        Assertions.assertTrue(e.getMessage().contains("does not have an assigned time series instance"));
 
         // Add time series data which is not in same table
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
@@ -347,9 +353,9 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         TimeSeries<Instant> ts = new TimeSeries<>(timeList_1, dataIRIs, dataToAdd);
         List<TimeSeries<Instant>> ts_list = new ArrayList<>();
         ts_list.add(ts);
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> client.addTimeSeriesData(ts_list));
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> client.addTimeSeriesData(ts_list));
 
-        Assert.assertTrue(e.getMessage().contains("Provided data is not within the same RDB table"));
+        Assertions.assertTrue(e.getMessage().contains("Provided data is not within the same RDB table"));
     }
 
     @Test
@@ -362,36 +368,36 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         // Check for time series with only one data IRI
         iris.add(dataIRI_1.get(0));
         TimeSeries<Instant> ts = client.getTimeSeries(iris);
-        Assert.assertEquals(timeList_1, ts.getTimes());
-        Assert.assertEquals(dataIRI_1.get(0), ts.getDataIRIs().get(0));
-        Assert.assertEquals(data1_1, ts.getValues(ts.getDataIRIs().get(0)));
+        Assertions.assertEquals(timeList_1, ts.getTimes());
+        Assertions.assertEquals(dataIRI_1.get(0), ts.getDataIRIs().get(0));
+        Assertions.assertEquals(data1_1, ts.getValues(ts.getDataIRIs().get(0)));
         // Check for time series with multiple data IRIs
         ts = client.getTimeSeries(dataIRI_1);
-        Assert.assertEquals(timeList_1, ts.getTimes());
+        Assertions.assertEquals(timeList_1, ts.getTimes());
         for (int i = 0; i < dataIRI_1.size(); i++) {
             String iri = dataIRI_1.get(i);
-            Assert.assertTrue(ts.getDataIRIs().contains(iri));
-            Assert.assertEquals(dataToAdd_1.get(i), ts.getValues(iri));
+            Assertions.assertTrue(ts.getDataIRIs().contains(iri));
+            Assertions.assertEquals(dataToAdd_1.get(i), ts.getValues(iri));
         }
     }
 
     @Test
     public void testGetTimeseriesExceptions() {
         // Get time series data for non-initialised time series and central table
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> client.getTimeSeries(dataIRI_1));
-        Assert.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
+        Assertions.assertTrue(e.getMessage().contains("Central RDB lookup table has not been initialised yet"));
         // Get time series data for non-initialised time series
         client.initTimeSeriesTable(dataIRI_3, dataClass_3, tsIRI_3);
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> client.getTimeSeries(dataIRI_1));
-        Assert.assertTrue(e.getMessage().contains("does not have an assigned time series instance"));
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> client.getTimeSeries(dataIRI_1));
+        Assertions.assertTrue(e.getMessage().contains("does not have an assigned time series instance"));
         // Get time series data which is not in same table
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         List<String> dataIRIs = new ArrayList<>();
         dataIRIs.addAll(dataIRI_1);
         dataIRIs.addAll(dataIRI_3);
-        e = Assert.assertThrows(JPSRuntimeException.class, () -> client.getTimeSeries(dataIRIs));
-        Assert.assertTrue(e.getMessage().contains("Provided data is not within the same RDB table"));
+        e = Assertions.assertThrows(JPSRuntimeException.class, () -> client.getTimeSeries(dataIRIs));
+        Assertions.assertTrue(e.getMessage().contains("Provided data is not within the same RDB table"));
     }
 
     @Test
@@ -406,28 +412,28 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         Instant lb = ts1.getTimes().get(1);
         Instant ub = ts1.getTimes().get(ts1.getTimes().size() - 2);
         TimeSeries<Instant> ts = client.getTimeSeriesWithinBounds(iris, lb, ub);
-        Assert.assertEquals(ts1.getTimes().subList(1, ts1.getTimes().size() - 1),
+        Assertions.assertEquals(ts1.getTimes().subList(1, ts1.getTimes().size() - 1),
                 ts.getTimes());
-        Assert.assertEquals(ts1.getValues(iris.get(0)).subList(1, ts1.getTimes().size() - 1),
+        Assertions.assertEquals(ts1.getValues(iris.get(0)).subList(1, ts1.getTimes().size() - 1),
                 ts.getValues(iris.get(0)));
         // Test for only lower bound
         ts = client.getTimeSeriesWithinBounds(iris, lb, null);
-        Assert.assertEquals(ts1.getTimes().subList(1, ts1.getTimes().size()),
+        Assertions.assertEquals(ts1.getTimes().subList(1, ts1.getTimes().size()),
                 ts.getTimes());
-        Assert.assertEquals(ts1.getValues(iris.get(0)).subList(1, ts1.getTimes().size()),
+        Assertions.assertEquals(ts1.getValues(iris.get(0)).subList(1, ts1.getTimes().size()),
                 ts.getValues(iris.get(0)));
         // Test for only upper bound
         ts = client.getTimeSeriesWithinBounds(iris, null, ub);
-        Assert.assertEquals(ts1.getTimes().subList(0, ts1.getTimes().size() - 1),
+        Assertions.assertEquals(ts1.getTimes().subList(0, ts1.getTimes().size() - 1),
                 ts.getTimes());
-        Assert.assertEquals(ts1.getValues(iris.get(0)).subList(0, ts1.getTimes().size() - 1),
+        Assertions.assertEquals(ts1.getValues(iris.get(0)).subList(0, ts1.getTimes().size() - 1),
                 ts.getValues(iris.get(0)));
         // Test for upper bound out of range (ts2 has time stamps after ts1)
         ub = ts2.getTimes().get(ts2.getTimes().size() - 1);
         ts = client.getTimeSeriesWithinBounds(iris, null, ub);
-        Assert.assertEquals(ts1.getTimes().subList(0, ts1.getTimes().size()),
+        Assertions.assertEquals(ts1.getTimes().subList(0, ts1.getTimes().size()),
                 ts.getTimes());
-        Assert.assertEquals(ts1.getValues(iris.get(0)).subList(0, ts1.getTimes().size()),
+        Assertions.assertEquals(ts1.getValues(iris.get(0)).subList(0, ts1.getTimes().size()),
                 ts.getValues(iris.get(0)));
         // Test for lower bound out of range (ts2 has time stamps after ts1)
         client.deleteAll();
@@ -437,16 +443,16 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         tableNameField.setAccessible(true);
         String tableName = (String) tableNameField.get(client);
         // Verify all tables are deleted
-        Assert.assertEquals(0, context.meta().getTables(tableName).size());
+        Assertions.assertEquals(0, context.meta().getTables(tableName).size());
         // Initialise time series table
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         // Add time series data
         client.addTimeSeriesData(ts_list2);
         lb = ts1.getTimes().get(0);
         ts = client.getTimeSeriesWithinBounds(iris, lb, null);
-        Assert.assertEquals(ts2.getTimes().subList(0, ts2.getTimes().size()),
+        Assertions.assertEquals(ts2.getTimes().subList(0, ts2.getTimes().size()),
                 ts.getTimes());
-        Assert.assertEquals(ts2.getValues(iris.get(0)).subList(0, ts2.getTimes().size()),
+        Assertions.assertEquals(ts2.getValues(iris.get(0)).subList(0, ts2.getTimes().size()),
                 ts.getValues(iris.get(0)));
     }
 
@@ -464,27 +470,27 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         OptionalDouble ave = data1_1.stream().mapToDouble(a -> a).average();
         double ave_exp = ave.isPresent() ? ave.getAsDouble() : Double.POSITIVE_INFINITY;
         double ave_act = client.getAverage(iri);
-        Assert.assertEquals(ave_exp, ave_act, 1e-6);
+        Assertions.assertEquals(ave_exp, ave_act, 1e-6);
 
         // Test minimum
         OptionalDouble min = data1_1.stream().mapToDouble(a -> a).min();
         double min_exp = min.isPresent() ? min.getAsDouble() : Double.POSITIVE_INFINITY;
         double min_act = client.getMinValue(iri);
-        Assert.assertEquals(min_exp, min_act, 1e-6);
+        Assertions.assertEquals(min_exp, min_act, 1e-6);
 
         // Test maximum
         OptionalDouble max = data1_1.stream().mapToDouble(a -> a).max();
         double max_exp = max.isPresent() ? max.getAsDouble() : Double.NEGATIVE_INFINITY;
         double max_act = client.getMaxValue(iri);
-        Assert.assertEquals(max_exp, max_act, 1e-6);
+        Assertions.assertEquals(max_exp, max_act, 1e-6);
 
         // Test Exception for non numerics data
         iri = dataIRI_1.get(1);
         try {
             client.getAverage(iri);
-            Assert.fail();
+            Assertions.fail();
         } catch (Exception e) {
-            Assert.assertEquals(JPSRuntimeException.class, e.getClass());
+            Assertions.assertEquals(JPSRuntimeException.class, e.getClass());
         }
     }
 
@@ -502,16 +508,16 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
 
         // Test minimum time
         min = client.getMinTime(iri);
-        Assert.assertEquals(timeList_1.get(0), min);
+        Assertions.assertEquals(timeList_1.get(0), min);
         for (String i : dataIRI_1) {
-            Assert.assertEquals(min, client.getMinTime(i));
+            Assertions.assertEquals(min, client.getMinTime(i));
         }
 
         // Test maximum time
         max = client.getMaxTime(iri);
-        Assert.assertEquals(timeList_1.get(timeList_1.size() - 1), max);
+        Assertions.assertEquals(timeList_1.get(timeList_1.size() - 1), max);
         for (String i : dataIRI_1) {
-            Assert.assertEquals(max, client.getMaxTime(i));
+            Assertions.assertEquals(max, client.getMaxTime(i));
         }
     }
 
@@ -530,22 +536,22 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         Instant ub;
 
         // Test for correct manipulation of time series length
-        Assert.assertEquals(timeList_1.size(), ts.getTimes().size());
+        Assertions.assertEquals(timeList_1.size(), ts.getTimes().size());
         // Delete latest time entry
         lb = ts.getTimes().get(ts.getTimes().size() - 1);
         ub = ts.getTimes().get(ts.getTimes().size() - 1);
         client.deleteRows(iri, lb, ub);
         ts = client.getTimeSeries(iris);
-        Assert.assertEquals(timeList_1.size() - 1, ts.getTimes().size());
-        Assert.assertEquals(timeList_1.subList(0, timeList_1.size() - 1), ts.getTimes());
-        Assert.assertEquals(ts1.getValues(iri).subList(0, timeList_1.size() - 1), ts.getValues(iri));
+        Assertions.assertEquals(timeList_1.size() - 1, ts.getTimes().size());
+        Assertions.assertEquals(timeList_1.subList(0, timeList_1.size() - 1), ts.getTimes());
+        Assertions.assertEquals(ts1.getValues(iri).subList(0, timeList_1.size() - 1), ts.getValues(iri));
 
         // Test for upper bound outside current time range
         lb = ts.getTimes().get(0);
         ub = timeList_2.get(timeList_2.size() - 1);
         client.deleteRows(iri, lb, ub);
         ts = client.getTimeSeries(iris);
-        Assert.assertEquals(0, ts.getTimes().size());
+        Assertions.assertEquals(0, ts.getTimes().size());
 
         // Test for upper bound outside current time range
         // Add new time series data
@@ -553,7 +559,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         ub = timeList_2.get(timeList_2.size() - 2);
         client.deleteRows(iri, lb, ub);
         ts = client.getTimeSeries(iris);
-        Assert.assertEquals(1, ts.getTimes().size());
+        Assertions.assertEquals(1, ts.getTimes().size());
     }
 
     @Test
@@ -583,31 +589,31 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         List<String> iris = new ArrayList<>(dataIRI_1);
         iris.addAll(dataIRI_3);
         List<String> iris_in_central_table = context.select(dataIRIcolumn).from(table).fetch(dataIRIcolumn);
-        Assert.assertEquals(4, iris_in_central_table.size());
+        Assertions.assertEquals(4, iris_in_central_table.size());
         for (String i : iris) {
-            Assert.assertTrue(iris_in_central_table.contains(i));
+            Assertions.assertTrue(iris_in_central_table.contains(i));
         }
 
         // Delete first time series
         client.deleteEntireTimeSeries(dataIRI_3.get(0));
         iris_in_central_table = context.select(dataIRIcolumn).from(table).fetch(dataIRIcolumn);
-        Assert.assertEquals(3, iris_in_central_table.size());
+        Assertions.assertEquals(3, iris_in_central_table.size());
         for (String i : dataIRI_1) {
-            Assert.assertTrue(iris_in_central_table.contains(i));
+            Assertions.assertTrue(iris_in_central_table.contains(i));
         }
-        Assert.assertFalse(iris_in_central_table.contains(dataIRI_3.get(0)));
+        Assertions.assertFalse(iris_in_central_table.contains(dataIRI_3.get(0)));
 
         // Check Exception for non-instantiated dataIRI
         String iri = "non-existing-iri";
-        JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+        JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
                 () -> client.deleteEntireTimeSeries(iri));
-        Assert.assertEquals(JPSRuntimeException.class, e.getClass());
-        Assert.assertTrue(e.getMessage().contains("<" + iri + "> does not have an assigned time series instance"));
+        Assertions.assertEquals(JPSRuntimeException.class, e.getClass());
+        Assertions.assertTrue(e.getMessage().contains("<" + iri + "> does not have an assigned time series instance"));
 
         // Delete second time series table
         client.deleteEntireTimeSeries(dataIRI_1.get(0));
         iris_in_central_table = context.select(dataIRIcolumn).from(table).fetch(dataIRIcolumn);
-        Assert.assertEquals(0, iris_in_central_table.size());
+        Assertions.assertEquals(0, iris_in_central_table.size());
     }
 
     @Test
@@ -618,13 +624,13 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         client.addTimeSeriesData(ts_list1);
 
         // Delete all tables and verify deleting
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assertions.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
         client.deleteAll();
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assertions.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Verify error-free execution if no tables are available
         client.deleteAll();
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assertions.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
     }
 
     @Test
@@ -636,8 +642,8 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         Instant latestTime = ts.getTimes().get(0);
         Double latestValue = ts.getValuesAsDouble(dataIRI_1.get(0)).get(0);
 
-        Assert.assertEquals(timeList_1.get(timeList_1.size() - 1), latestTime);
-        Assert.assertEquals(data1_1.get(data1_1.size() - 1), latestValue);
+        Assertions.assertEquals(timeList_1.get(timeList_1.size() - 1), latestTime);
+        Assertions.assertEquals(data1_1.get(data1_1.size() - 1), latestValue);
     }
 
     @Test
@@ -649,7 +655,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         Instant oldestTime = ts.getTimes().get(0);
         Double oldestValue = ts.getValuesAsDouble(dataIRI_1.get(0)).get(0);
 
-        Assert.assertEquals(timeList_1.get(0), oldestTime);
-        Assert.assertEquals(data1_1.get(0), oldestValue);
+        Assertions.assertEquals(timeList_1.get(0), oldestTime);
+        Assertions.assertEquals(data1_1.get(0), oldestValue);
     }
 }

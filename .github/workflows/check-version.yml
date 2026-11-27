@@ -1,0 +1,40 @@
+name: Check project version
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - pom.xml
+      - .github/workflows/check-version.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check project version has no qualifier
+        run: |
+          python3 - <<'PY'
+          import re
+          import xml.etree.ElementTree as ET
+
+          namespace = "{http://maven.apache.org/POM/4.0.0}"
+          version = ET.parse("pom.xml").getroot().findtext(f"{namespace}version")
+          if version is None:
+              raise SystemExit("Could not find the project version in pom.xml")
+
+          version = version.strip()
+          if not re.fullmatch(r"\d+(?:\.\d+)*", version):
+              raise SystemExit(
+                  f"Project version '{version}' contains a qualifier; use a numeric release version."
+              )
+
+          print(f"Project version '{version}' has no qualifier.")
+          PY

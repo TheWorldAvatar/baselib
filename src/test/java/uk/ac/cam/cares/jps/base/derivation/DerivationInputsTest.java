@@ -10,8 +10,8 @@ import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -41,17 +41,17 @@ public class DerivationInputsTest {
 		inputs.setAccessible(true);
 		Map<String, List<String>> inputsf = (Map<String, List<String>>) inputs.get(devInputs);
 		// the retrieved value should contain the same values as the mappedInstances
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 
 		// should fail if given wrong JSON structure
 		mappedInstances.put("http://key", new JSONObject().put("http://key2", "http://value"));
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> new DerivationInputs(mappedInstances, derivationIRI));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(DerivationInputs.DERIVATIONINPUTS_SERIALISE_ERROR + mappedInstances.toString()));
 	}
 
@@ -80,11 +80,11 @@ public class DerivationInputsTest {
 		inputs.setAccessible(true);
 		Map<String, List<String>> inputsf = (Map<String, List<String>>) inputs.get(devInputs);
 		// the retrieved value should contain the same values as the mappedInstances
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	@Test
@@ -102,11 +102,11 @@ public class DerivationInputsTest {
 		inputs.setAccessible(true);
 		Map<String, List<String>> inputsf = (Map<String, List<String>>) inputs.get(devInputs);
 		// the retrieved value should contain the same values as the mappedInstances
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), inputsf.get(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), inputsf.get(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), inputsf.get(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	@Test
@@ -118,11 +118,11 @@ public class DerivationInputsTest {
 		mappedInstances.put(class3, new JSONArray(Arrays.asList(instance3_1)));
 		DerivationInputs devInputs = new DerivationInputs(mappedInstances, derivationIRI);
 
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), devInputs.getIris(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), devInputs.getIris(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), devInputs.getIris(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), devInputs.getIris(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), devInputs.getIris(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), devInputs.getIris(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	@Test
@@ -134,11 +134,11 @@ public class DerivationInputsTest {
 		mappedInstances.put(class3, new JSONArray(Arrays.asList(instance3_1)));
 		DerivationInputs devInputs = new DerivationInputs(mappedInstances,derivationIRI);
 
-		Assert.assertTrue(
+		Assertions.assertTrue(
 				equalLists(Arrays.asList(instance1_1, instance1_2, instance2_1, instance2_2, instance2_3, instance3_1),
 						devInputs.getAllIris()));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	@Test
@@ -154,11 +154,11 @@ public class DerivationInputsTest {
 		devInputs.addToInputs("<" + class3 + ">", "<" + instance3_1);
 		Map<String, List<String>> outputs = devInputs.getInputs();
 		// the retrieved value should contain the same values as the mappedInstances
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), outputs.get(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), outputs.get(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), outputs.get(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), outputs.get(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), outputs.get(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), outputs.get(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	@Test
@@ -174,11 +174,11 @@ public class DerivationInputsTest {
 		devInputs.addToInputs("<" + class3 + ">", "<" + instance3_1 + ">");
 		Map<String, List<String>> outputs = devInputs.getInputs();
 		// the retrieved value should contain the same values as the mappedInstances
-		Assert.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), outputs.get(class1)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), outputs.get(class2)));
-		Assert.assertTrue(equalLists(Arrays.asList(instance3_1), outputs.get(class3)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance1_1, instance1_2), outputs.get(class1)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance2_1, instance2_2, instance2_3), outputs.get(class2)));
+		Assertions.assertTrue(equalLists(Arrays.asList(instance3_1), outputs.get(class3)));
 		// the derivationIRI should be the same as the one provided
-		Assert.assertEquals(derivationIRI, devInputs.getDerivationIRI());
+		Assertions.assertEquals(derivationIRI, devInputs.getDerivationIRI());
 	}
 
 	////////////////////////////////////////////////////////////

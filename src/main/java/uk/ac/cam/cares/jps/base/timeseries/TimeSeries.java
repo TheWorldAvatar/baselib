@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.postgis.Point;
-import org.postgis.PGgeometry;
-
+import net.postgis.jdbc.PGgeometry;
+import net.postgis.jdbc.geometry.Point;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
 /**

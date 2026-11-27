@@ -1,8 +1,8 @@
 package uk.ac.cam.cares.jps.base.tools.cloning;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
@@ -27,10 +27,9 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.update.UpdateRequest;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import uk.ac.cam.cares.jps.base.interfaces.TripleStoreClientInterface;
 import uk.ac.cam.cares.jps.base.query.FileBasedStoreClient;
@@ -44,8 +43,8 @@ import uk.ac.cam.cares.jps.base.query.FileBasedStoreClient;
 public class SourceTaggingCloningToolTest {
 
 		// temporary folder for testing
-		@Rule
-		public TemporaryFolder tempFolder = new TemporaryFolder();
+		@TempDir
+		public Path tempFolder;
 		
 		private String filePath1;
 		private String filePath2;
@@ -56,17 +55,17 @@ public class SourceTaggingCloningToolTest {
 		 * @throws URISyntaxException
 		 * @throws IOException
 		 */
-		@Before
+		@BeforeEach
 		public void setup() throws URISyntaxException, IOException {
 			
 			// Test file
 			Path testResourcePath = Paths.get(this.getClass().getResource("/ToolsTest/clonetest1.owl").toURI());
-			Path tempFilePath = Paths.get(tempFolder.getRoot().toString() + "/clonetest1.owl");		
+			Path tempFilePath = Paths.get(tempFolder.toString() + "/clonetest1.owl");
 			Files.copy(testResourcePath, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
 			filePath1 = tempFilePath.toString();
 			
 			Path testResourcePath2 = Paths.get(this.getClass().getResource("/ToolsTest/clonetest2.owl").toURI());
-			Path tempFilePath2 = Paths.get(tempFolder.getRoot().toString() + "/clonetest2.owl");		
+			Path tempFilePath2 = Paths.get(tempFolder.toString() + "/clonetest2.owl");
 			Files.copy(testResourcePath2, tempFilePath2, StandardCopyOption.REPLACE_EXISTING);
 			filePath2 = tempFilePath2.toString();
 		}
@@ -307,7 +306,7 @@ public class SourceTaggingCloningToolTest {
 			Node  s = ResourceFactory.createResource("http://example.com/S"+tag).asNode();
 			Node  p = ResourceFactory.createResource("http://example.com/P").asNode();   
 			Node  o = ResourceFactory.createResource("http://example.com/O").asNode();
-			model.add( model.asStatement(new Triple(s,p,o)));
+			model.add(model.asStatement(Triple.create(s, p, o)));
 			UpdateBuilder builder = new UpdateBuilder().addInsert(model);
 			
 			kbClient.executeUpdate(builder.buildRequest());
@@ -615,7 +614,7 @@ public class SourceTaggingCloningToolTest {
 			Node  s = ResourceFactory.createResource("http://example.com/S").asNode();
 			Node  p = ResourceFactory.createResource("http://example.com/P").asNode();   
 			Node  o = ResourceFactory.createResource("http://example.com/O").asNode();
-			model.add( model.asStatement(new Triple(s,p,o)));
+			model.add(model.asStatement(Triple.create(s, p, o)));
 			return model;
 		}
 		

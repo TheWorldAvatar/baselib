@@ -1,9 +1,9 @@
 package uk.ac.cam.cares.jps.base.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,15 +21,14 @@ import org.apache.jena.arq.querybuilder.WhereBuilder;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.Lang;
-import org.apache.jena.sparql.lang.sparql_11.ParseException;
 import org.apache.jena.update.UpdateRequest;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -44,8 +43,8 @@ public class FileBasedStoreClientTest {
 	private FileBasedStoreClient kbClient;
 	
 	// temporary folder for testing
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+	@TempDir
+	public Path tempFolder;
 		
 	private String filePath;
 	private String filePathNQ;
@@ -59,29 +58,29 @@ public class FileBasedStoreClientTest {
 	 * @throws URISyntaxException
 	 * @throws IOException
 	 */
-	@Before
+	@BeforeEach
 	public void setup() throws URISyntaxException, IOException {
 		
 		// Test rdf file
 		Path testResourcePath = Paths.get(this.getClass().getResource("/KBClientTest/testRDF.rdf").toURI());
-		Path tempFilePath = Paths.get(tempFolder.getRoot().toString() + "/testRDF.rdf");		
+		Path tempFilePath = Paths.get(tempFolder.toString() + "/testRDF.rdf");
 		Files.copy(testResourcePath, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
 		filePath = tempFilePath.toString();
 		
 		// Test owl file
 		Path testResourcePathOWL = Paths.get(this.getClass().getResource("/KBClientTest/testOWL.owl").toURI());
-		Path tempFilePathOWL = Paths.get(tempFolder.getRoot().toString() + "/testOWL.owl");
+		Path tempFilePathOWL = Paths.get(tempFolder.toString() + "/testOWL.owl");
 		Files.copy(testResourcePathOWL, tempFilePathOWL, StandardCopyOption.REPLACE_EXISTING);
 		filePathOWL = tempFilePathOWL.toString();
 		
 		// Test NQ file
 		Path testResourcePathNQ = Paths.get(this.getClass().getResource("/KBClientTest/testQuads.nq").toURI());
-		Path tempFilePathNQ = Paths.get(tempFolder.getRoot().toString() + "/testQuads.nq");
+		Path tempFilePathNQ = Paths.get(tempFolder.toString() + "/testQuads.nq");
 		Files.copy(testResourcePathNQ, tempFilePathNQ, StandardCopyOption.REPLACE_EXISTING);
 		filePathNQ = tempFilePathNQ.toString();
 		
 		Path testResourcePathNQ2 = Paths.get(this.getClass().getResource("/KBClientTest/testQuads2.nq").toURI());
-		Path tempFilePathNQ2 = Paths.get(tempFolder.getRoot().toString() + "/testQuads2.nq");
+		Path tempFilePathNQ2 = Paths.get(tempFolder.toString() + "/testQuads2.nq");
 		Files.copy(testResourcePathNQ2, tempFilePathNQ2, StandardCopyOption.REPLACE_EXISTING);
 		filePathNQ2 = tempFilePathNQ2.toString();
 	}
@@ -328,44 +327,48 @@ public class FileBasedStoreClientTest {
 	/**
 	 * Multiple contexts in quad. Expect an error.
 	 */
-	@Test(expected = JPSRuntimeException.class)
+	@Test
 	public void testMultipleContexts() {
-		
-		kbClient = new FileBasedStoreClient();
-		kbClient.load("http://example.com/context", filePathNQ2);
+		Assertions.assertThrows(JPSRuntimeException.class, () -> {
+			kbClient = new FileBasedStoreClient();
+			kbClient.load("http://example.com/context", filePathNQ2);
+		});
 	}
 	
 	/**
 	 * Multiple quads with same context. Expect an error.
 	 */
-	@Test(expected = JPSRuntimeException.class)
+	@Test
 	public void testSameContext() {
-		
-		kbClient = new FileBasedStoreClient();
-		kbClient.load("http://example.com/context", filePathNQ);
-		kbClient.load("http://example.com/context2", filePathNQ);
+		Assertions.assertThrows(JPSRuntimeException.class, () -> {
+			kbClient = new FileBasedStoreClient();
+			kbClient.load("http://example.com/context", filePathNQ);
+			kbClient.load("http://example.com/context2", filePathNQ);
+		});
 	}
 	
 	/**
 	 * Loading multiple files to same graph. Expect an error.
 	 */
-	@Test(expected = JPSRuntimeException.class)
+	@Test
 	public void testSameGraph() {
-		
-		kbClient = new FileBasedStoreClient();
-		kbClient.load("http://example.com/context", filePathOWL);
-		kbClient.load("http://example.com/context", filePath);
+		Assertions.assertThrows(JPSRuntimeException.class, () -> {
+			kbClient = new FileBasedStoreClient();
+			kbClient.load("http://example.com/context", filePathOWL);
+			kbClient.load("http://example.com/context", filePath);
+		});
 	}
 	
 	/**
 	 * Loading multiple files to default graph. Expect an error.
 	 */
-	@Test(expected = JPSRuntimeException.class)
+	@Test
 	public void testMultipleDefault() {
-		
-		kbClient = new FileBasedStoreClient();
-		kbClient.load(filePathOWL);
-		kbClient.load(filePath);
+		Assertions.assertThrows(JPSRuntimeException.class, () -> {
+			kbClient = new FileBasedStoreClient();
+			kbClient.load(filePathOWL);
+			kbClient.load(filePath);
+		});
 	}
 	
 	//// Writing to file
@@ -387,7 +390,7 @@ public class FileBasedStoreClientTest {
 		assertFalse(kbClient.isEmpty());
 				
 		//write file
-		String newFilePath = Paths.get(tempFolder.getRoot().toString() + "/newfile.nq").toString();
+		String newFilePath = Paths.get(tempFolder.toString() + "/newfile.nq").toString();
 		kbClient.writeToFile(null, newFilePath, Lang.NQ);
 		
 		File file = new File(newFilePath);
@@ -398,7 +401,7 @@ public class FileBasedStoreClientTest {
 		kbClient.load( "http://example.com/triples", filePathOWL);
 		
 		//write file
-		String newFilePath2 = Paths.get(tempFolder.getRoot().toString() + "/newfile2.nq").toString();
+		String newFilePath2 = Paths.get(tempFolder.toString() + "/newfile2.nq").toString();
 		kbClient.writeToFile("http://example.com/triples", newFilePath2, Lang.NQ);
 		
 		File file2 = new File(newFilePath2);
@@ -417,7 +420,7 @@ public class FileBasedStoreClientTest {
 		assertFalse(kbClient.isEmpty());		
 
 		//Change output path to check if file is written
-		String newFilePath = Paths.get(tempFolder.getRoot().toString() + "/newfile.owl").toString();
+		String newFilePath = Paths.get(tempFolder.toString() + "/newfile.owl").toString();
 		kbClient.setPath(null, newFilePath);
 		
 		kbClient.end();
@@ -570,10 +573,9 @@ public class FileBasedStoreClientTest {
 	/**
 	 * Test Sparql update.
 	 * 
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdate() throws ParseException {
+	public void testExecuteUpdate() {
 
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -598,10 +600,9 @@ public class FileBasedStoreClientTest {
 	
 	/**
 	 * Test Sparql Update with String.
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdateWithStringArgument() throws ParseException {
+	public void testExecuteUpdateWithStringArgument() {
 
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -625,10 +626,9 @@ public class FileBasedStoreClientTest {
 
 	/**
 	 * Test Sparql Update with UpdateRequest.
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdateWithUpdateRequestArgument() throws ParseException {
+	public void testExecuteUpdateWithUpdateRequestArgument() {
 		
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -753,9 +753,8 @@ public class FileBasedStoreClientTest {
 	 * Returns the test Sparql update.
 	 * 
 	 * @return UpdateRequest
-	 * @throws ParseException
 	 */
-	private static UpdateRequest getUpdateRequest() throws ParseException {
+	private static UpdateRequest getUpdateRequest() {
 		
 		//DELETE {?s ?p ?o} 
 		//INSERT {?s ?p \"TEST\" } 
