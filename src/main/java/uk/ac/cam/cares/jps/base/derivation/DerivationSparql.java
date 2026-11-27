@@ -1916,7 +1916,7 @@ public class DerivationSparql {
 				// query, this is to avoid the situation where the inputs of the derivation are too many thus the triple
 				// store execute the two blocks of query separately and then join them together, which is observed to
 				// crash the triple store
-				GraphPattern derivationBindPattern = new Bind(derivationPreBind, derivation);
+				GraphPattern derivationBindPattern = Expressions.bind(derivationPreBind, derivation);
 				query.where(rootDerivationPattern, derivationBindPattern);
 			} else {
 				ValuesPattern rootDerivationPattern = new ValuesPattern(derivation,
