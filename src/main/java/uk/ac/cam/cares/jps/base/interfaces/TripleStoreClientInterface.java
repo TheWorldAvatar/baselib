@@ -1,10 +1,11 @@
 package uk.ac.cam.cares.jps.base.interfaces;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.jena.query.Query;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.update.UpdateRequest;
 import org.json.JSONArray;
+
 import uk.ac.cam.cares.jps.base.tools.cloning.CloningTool;
 
 /**

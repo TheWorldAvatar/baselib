@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.query.Query;
