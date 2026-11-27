@@ -45,7 +45,7 @@ class CloningToolIntegrationTest {
 	}
 
 	@AfterEach
-	private void clearTriples() {
+	void clearTriples() {
 		sourceStoreClient.executeUpdate(BlazegraphContainer.DELETE_ALL_QUERY);
 		targetStoreClient.executeUpdate(BlazegraphContainer.DELETE_ALL_QUERY);
 	}
