@@ -11,7 +11,6 @@ import org.apache.jena.arq.querybuilder.WhereBuilder;
 import org.apache.jena.query.Query;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.sparql.core.Var;
-import org.apache.jena.sparql.lang.sparql_11.ParseException;
 import org.apache.jena.update.UpdateRequest;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -31,7 +30,7 @@ class LocalStoreClientTest {
 	private static String testQuery3 = "SELECT ?o WHERE {<http://www.example.com/test/s3> <http://www.example.com/test/p3> ?o.}";
 	private static String expected3 = "[{\"o\":\"http://www.example.com/test/o3\"}]";
 	
-	private static UpdateRequest getUpdateRequest() throws ParseException {
+	private static UpdateRequest getUpdateRequest() {
 		
 		WhereBuilder where = new WhereBuilder()
 				.addBind("<http://www.example.com/test/s1>", "?s")
@@ -154,7 +153,7 @@ class LocalStoreClientTest {
 	 * Test Sparql update from query variable
 	 */
 	@Test
-	public void testExecuteUpdate() throws ParseException {
+	public void testExecuteUpdate() {
 
 		// Test by executing update from query variable to load data
 		LocalStoreClient storeClient = new LocalStoreClient(testData);
@@ -173,7 +172,7 @@ class LocalStoreClientTest {
 	 * Test Sparql Update with argument as string 
 	 */
 	@Test
-	public void testExecuteUpdateWithStringArgument() throws ParseException {
+	public void testExecuteUpdateWithStringArgument() {
 
 		// Test by executing update from argument to load data
 		LocalStoreClient storeClient = new LocalStoreClient();
@@ -192,7 +191,7 @@ class LocalStoreClientTest {
 	 * Test Sparql Update with argument as UpdateRequest
 	 */
 	@Test
-	public void testExecuteUpdateWithUpdateRequestArgument() throws ParseException {
+	public void testExecuteUpdateWithUpdateRequestArgument() {
 		
 		// Instantiate and load data
 		LocalStoreClient storeClient = new LocalStoreClient();

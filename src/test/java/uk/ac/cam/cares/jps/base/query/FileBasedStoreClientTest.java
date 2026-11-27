@@ -21,7 +21,6 @@ import org.apache.jena.arq.querybuilder.WhereBuilder;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.Lang;
-import org.apache.jena.sparql.lang.sparql_11.ParseException;
 import org.apache.jena.update.UpdateRequest;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -570,10 +569,9 @@ public class FileBasedStoreClientTest {
 	/**
 	 * Test Sparql update.
 	 * 
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdate() throws ParseException {
+	public void testExecuteUpdate() {
 
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -598,10 +596,9 @@ public class FileBasedStoreClientTest {
 	
 	/**
 	 * Test Sparql Update with String.
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdateWithStringArgument() throws ParseException {
+	public void testExecuteUpdateWithStringArgument() {
 
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -625,10 +622,9 @@ public class FileBasedStoreClientTest {
 
 	/**
 	 * Test Sparql Update with UpdateRequest.
-	 * @throws ParseException
 	 */
 	@Test
-	public void testExecuteUpdateWithUpdateRequestArgument() throws ParseException {
+	public void testExecuteUpdateWithUpdateRequestArgument() {
 		
 		kbClient = new FileBasedStoreClient();
 		kbClient.load(filePath);
@@ -753,9 +749,8 @@ public class FileBasedStoreClientTest {
 	 * Returns the test Sparql update.
 	 * 
 	 * @return UpdateRequest
-	 * @throws ParseException
 	 */
-	private static UpdateRequest getUpdateRequest() throws ParseException {
+	private static UpdateRequest getUpdateRequest() {
 		
 		//DELETE {?s ?p ?o} 
 		//INSERT {?s ?p \"TEST\" } 

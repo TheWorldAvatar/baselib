@@ -307,7 +307,7 @@ public class SourceTaggingCloningToolTest {
 			Node  s = ResourceFactory.createResource("http://example.com/S"+tag).asNode();
 			Node  p = ResourceFactory.createResource("http://example.com/P").asNode();   
 			Node  o = ResourceFactory.createResource("http://example.com/O").asNode();
-			model.add( model.asStatement(new Triple(s,p,o)));
+			model.add(model.asStatement(Triple.create(s, p, o)));
 			UpdateBuilder builder = new UpdateBuilder().addInsert(model);
 			
 			kbClient.executeUpdate(builder.buildRequest());
@@ -615,7 +615,7 @@ public class SourceTaggingCloningToolTest {
 			Node  s = ResourceFactory.createResource("http://example.com/S").asNode();
 			Node  p = ResourceFactory.createResource("http://example.com/P").asNode();   
 			Node  o = ResourceFactory.createResource("http://example.com/O").asNode();
-			model.add( model.asStatement(new Triple(s,p,o)));
+			model.add(model.asStatement(Triple.create(s, p, o)));
 			return model;
 		}
 		
