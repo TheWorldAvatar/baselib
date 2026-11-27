@@ -1,5 +1,12 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import static org.jooq.impl.DSL.avg;
+import static org.jooq.impl.DSL.count;
+import static org.jooq.impl.DSL.max;
+import static org.jooq.impl.DSL.min;
+import static org.jooq.impl.DSL.selectFrom;
+import static org.jooq.impl.DSL.unique;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -20,8 +27,7 @@ import java.util.stream.IntStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.Condition;
-import org.jooq.CreateSchemaFinalStep;
-import org.jooq.CreateTableColumnStep;
+import org.jooq.CreateTableElementListStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertValuesStep4;
@@ -33,10 +39,8 @@ import org.jooq.Result;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.jooq.impl.DefaultDataType;
-import org.postgis.Geometry;
 
-import static org.jooq.impl.DSL.*;
-
+import net.postgis.jdbc.geometry.Geometry;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
 /**
@@ -1055,10 +1059,8 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
         DSLContext context = DSL.using(conn, DIALECT);
         // Initialise central lookup table: only creates empty table if it does not
         // exist, otherwise it is left unchanged
-        try (CreateTableColumnStep createStep = context.createTableIfNotExists(getDSLTable(DB_TABLE_NAME))) {
-            createStep.column(DATA_IRI_COLUMN).column(TS_IRI_COLUMN).column(COLUMNNAME_COLUMN).column(TABLENAME_COLUMN)
-                    .execute();
-        }
+        context.createTableIfNotExists(getDSLTable(DB_TABLE_NAME)).column(DATA_IRI_COLUMN).column(TS_IRI_COLUMN)
+                .column(COLUMNNAME_COLUMN).column(TABLENAME_COLUMN).execute();
         context.createIndex().on(getDSLTable(DB_TABLE_NAME),
                 Arrays.asList(DATA_IRI_COLUMN, TS_IRI_COLUMN, COLUMNNAME_COLUMN, TABLENAME_COLUMN)).execute();
     }
@@ -1160,33 +1162,25 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
 
         List<String> additionalGeomColumns = new ArrayList<>();
         List<Class<?>> classForAdditionalGeomColumns = new ArrayList<>();
-        CreateTableColumnStep createStep = null;
-        try {
-            // Create table
-            createStep = context.createTable(getDSLTable(tsTableName));
+        // Create table
+        CreateTableElementListStep createStep = context.createTable(getDSLTable(tsTableName));
 
-            // Create time column
-            createStep = createStep.column(timeColumn).column(TS_IRI_COLUMN);
+        // Create time column
+        createStep = createStep.column(timeColumn).column(TS_IRI_COLUMN);
 
-            // Create 1 column for each value
-            for (int i = 0; i < dataIRI.size(); i++) {
-                if (Geometry.class.isAssignableFrom(dataClass.get(i))) {
-                    // these columns will be added with their respective restrictions
-                    additionalGeomColumns.add(dataColumnNames.get(dataIRI.get(i)));
-                    classForAdditionalGeomColumns.add(dataClass.get(i));
-                } else {
-                    createStep = createStep.column(dataColumnNames.get(dataIRI.get(i)),
-                            DefaultDataType.getDataType(DIALECT, dataClass.get(i)));
-                }
-            }
-
-            // Send consolidated request to RDB
-            createStep.constraints(unique(timeColumn, TS_IRI_COLUMN)).execute();
-        } finally {
-            if (createStep != null) {
-                createStep.close();
+        // Create 1 column for each value
+        for (int i = 0; i < dataIRI.size(); i++) {
+            if (Geometry.class.isAssignableFrom(dataClass.get(i))) {
+                // these columns will be added with their respective restrictions
+                additionalGeomColumns.add(dataColumnNames.get(dataIRI.get(i)));
+                classForAdditionalGeomColumns.add(dataClass.get(i));
+            } else {
+                createStep = createStep.column(dataColumnNames.get(dataIRI.get(i)),
+                        DefaultDataType.getDataType(DIALECT, dataClass.get(i)));
             }
         }
+        // Send consolidated request to RDB
+        createStep.constraints(unique(timeColumn, TS_IRI_COLUMN)).execute();
 
         // create index on time column and time series IRI columns for quicker searches
         context.createIndex().on(getDSLTable(tsTableName), timeColumn, TS_IRI_COLUMN).execute();
@@ -1944,9 +1938,7 @@ public class TimeSeriesRDBClientWithReducedTables<T> implements TimeSeriesRDBCli
 
     private void initSchemaIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        try (CreateSchemaFinalStep createStep = context.createSchemaIfNotExists(DSL.name(schema))) {
-            createStep.execute();
-        }
+        context.createSchemaIfNotExists(DSL.name(schema)).execute();
     }
 
     private Table<Record> getDSLTable(String tableName) {

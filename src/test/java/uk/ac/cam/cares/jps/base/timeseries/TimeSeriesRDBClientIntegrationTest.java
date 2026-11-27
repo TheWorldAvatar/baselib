@@ -89,7 +89,7 @@ public class TimeSeriesRDBClientIntegrationTest {
         conn = DriverManager.getConnection(dbURL, user, password);
         DSLContext context = DSL.using(conn, SQLDialect.POSTGRES);
         // Clear database
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
@@ -223,7 +223,7 @@ public class TimeSeriesRDBClientIntegrationTest {
     // Clear all tables after each test to ensure clean slate
     public void clearDatabase() throws SQLException {
         DSLContext context = DSL.using(conn, SQLDialect.POSTGRES);
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
@@ -266,7 +266,7 @@ public class TimeSeriesRDBClientIntegrationTest {
         // Initialise 1st time series
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1, conn);
         // Check that timeseries table was created in addition to central table
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assert.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Retrieve the value of the private field 'dbTableName' of the client to check
         // its value
@@ -651,13 +651,13 @@ public class TimeSeriesRDBClientIntegrationTest {
         client.addTimeSeriesData(ts_list1, conn);
 
         // Delete all tables and verify deleting
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assert.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
         client.deleteAll(conn);
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assert.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Verify error-free execution if no tables are available
         client.deleteAll(conn);
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assert.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
     }
 
     @Test

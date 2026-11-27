@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.Condition;
-import org.jooq.CreateSchemaFinalStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertValuesStep1;
@@ -37,9 +36,9 @@ import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.jooq.impl.DefaultDataType;
 import org.jooq.impl.SQLDataType;
-import org.postgis.Geometry;
-import org.postgis.Point;
 
+import net.postgis.jdbc.geometry.Geometry;
+import net.postgis.jdbc.geometry.Point;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
 /**
@@ -842,9 +841,7 @@ public class TimeSeriesRDBClientOntop<T> implements TimeSeriesRDBClientInterface
 
     private void initSchemaIfNotExists(Connection conn) {
         DSLContext context = DSL.using(conn, DIALECT);
-        try (CreateSchemaFinalStep createStep = context.createSchemaIfNotExists(DSL.name(schema))) {
-            createStep.execute();
-        }
+        context.createSchemaIfNotExists(DSL.name(schema)).execute();
     }
 
     private void initDataTypeTableIfNotExists(Connection conn) {

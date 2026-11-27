@@ -1,5 +1,7 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
+import static org.jooq.impl.DSL.selectFrom;
+
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -10,12 +12,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
 
-import org.junit.*;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.Table;
 import org.jooq.impl.DSL;
-import static org.jooq.impl.DSL.selectFrom;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -73,7 +79,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         conn = DriverManager.getConnection(dbURL, user, password);
         context = DSL.using(conn, SQLDialect.POSTGRES);
         // Clear database
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
@@ -198,7 +204,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
     @After
     // Clear all tables after each test to ensure clean slate
     public void clearDatabase() {
-        List<Table<?>> tables = context.meta().getTables();
+        List<Table<?>> tables = TestDatabaseUtils.getApplicationTables(context);
         for (Table<?> table : tables) {
             context.dropTable(table).cascade().execute();
         }
@@ -248,7 +254,7 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         // Initialise 1st time series
         client.initTimeSeriesTable(dataIRI_1, dataClass_1, tsIRI_1);
         // Check that timeseries table was created in addition to central table
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assert.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Retrieve the value of the private field 'dbTableName' of the client to check
         // its value
@@ -618,13 +624,13 @@ public class TimeSeriesRDBClientIntegrationWithoutConnTest {
         client.addTimeSeriesData(ts_list1);
 
         // Delete all tables and verify deleting
-        Assert.assertEquals(2, context.meta().getTables().size());
+        Assert.assertEquals(2, TestDatabaseUtils.getApplicationTables(context).size());
         client.deleteAll();
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assert.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
 
         // Verify error-free execution if no tables are available
         client.deleteAll();
-        Assert.assertEquals(0, context.meta().getTables().size());
+        Assert.assertEquals(0, TestDatabaseUtils.getApplicationTables(context).size());
     }
 
     @Test

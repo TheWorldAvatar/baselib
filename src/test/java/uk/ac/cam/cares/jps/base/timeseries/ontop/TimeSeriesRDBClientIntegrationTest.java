@@ -33,6 +33,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
+import uk.ac.cam.cares.jps.base.timeseries.TestDatabaseUtils;
 import uk.ac.cam.cares.jps.base.timeseries.TimeSeries;
 import uk.ac.cam.cares.jps.base.timeseries.TimeSeriesRDBClientOntop;
 
@@ -548,12 +549,12 @@ public class TimeSeriesRDBClientIntegrationTest {
         tables.add((String) tableNameField2.get(client));
 
         // Delete all tables and verify deleting
-        List<String> tablesInDatabase = context.meta().getTables().stream().map(t -> t.getName())
+        List<String> tablesInDatabase = TestDatabaseUtils.getApplicationTables(context).stream().map(t -> t.getName())
                 .collect(Collectors.toList());
         Assert.assertTrue(tablesInDatabase.containsAll(tables));
         client.deleteAll(conn);
 
-        tablesInDatabase = context.meta().getTables().stream().map(t -> t.getName()).collect(Collectors.toList());
+        tablesInDatabase = TestDatabaseUtils.getApplicationTables(context).stream().map(t -> t.getName()).collect(Collectors.toList());
         Assert.assertTrue(Collections.disjoint(tables, tablesInDatabase));
 
         // Verify error-free execution if no tables are available

@@ -4,11 +4,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Test;
-import org.postgis.Point;
-import org.junit.Before;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
+import net.postgis.jdbc.geometry.Point;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
 /**

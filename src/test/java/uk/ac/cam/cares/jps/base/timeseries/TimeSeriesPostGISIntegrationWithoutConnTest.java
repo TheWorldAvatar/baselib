@@ -10,12 +10,12 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.postgis.Point;
-import org.postgis.Polygon;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.containers.PostgreSQLContainer;
 
+import net.postgis.jdbc.geometry.Point;
+import net.postgis.jdbc.geometry.Polygon;
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
 /*
