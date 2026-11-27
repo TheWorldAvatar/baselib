@@ -16,14 +16,38 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <log4j.version>2.26.0</log4j.version>
-        <rdf4j.version>4.3.9</rdf4j.version>
-        <jena.version>4.10.0</jena.version>
-        <glassfish.jersey.version>2.41</glassfish.jersey.version>
-        <slf4j.version>1.7.36</slf4j.version>
-        <apache.httpcomponents.version>4.5.14</apache.httpcomponents.version>
+        <log4j.version>2.26.1</log4j.version>
+        <rdf4j.version>6.1.0</rdf4j.version>
+        <jena.version>6.3.0</jena.version>
+        <jena.jdbc.version>4.10.0</jena.jdbc.version>
+        <glassfish.jersey.version>4.0.3</glassfish.jersey.version>
+        <slf4j.version>2.0.20</slf4j.version>
+        <httpcomponents5.version>5.6.5</httpcomponents5.version>
         <spring.version>7.1.0</spring.version>
         <mockito.version>5.24.0</mockito.version>
+        <jakarta.servlet.version>6.1.0</jakarta.servlet.version>
+        <jakarta.ws.rs.version>4.0.0</jakarta.ws.rs.version>
+        <jooq.version>3.21.10</jooq.version>
+        <postgresql.version>42.7.15</postgresql.version>
+        <guava.version>33.8.0-jre</guava.version>
+        <json.version>20260814</json.version>
+        <commons-codec.version>1.23.0</commons-codec.version>
+        <py4j.version>0.10.9.9</py4j.version>
+        <jgrapht.version>1.5.3</jgrapht.version>
+        <junit-jupiter.version>6.1.3</junit-jupiter.version>
+        <junit4.version>4.13.2</junit4.version>
+        <wiremock.version>3.13.2</wiremock.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
+        <opencsv.version>5.12.0</opencsv.version>
+        <owlapi.version>5.5.1</owlapi.version>
+        <commons-validator.version>1.11.0</commons-validator.version>
+        <commons-io.version>2.22.0</commons-io.version>
+        <postgis.version>2025.1.1</postgis.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
+        <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
+        <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+        <maven-surefire-plugin.version>3.6.1</maven-surefire-plugin.version>
+        <build-helper-maven-plugin.version>3.8.0</build-helper-maven-plugin.version>
     </properties>
 
     <!-- Repository locations to fetch from -->
@@ -34,6 +58,23 @@
             <url>https://maven.pkg.github.com/TheWorldAvatar/*</url>
         </repository>
     </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.eclipse.rdf4j</groupId>
+                <artifactId>rdf4j-bom</artifactId>
+                <version>${rdf4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.rdf4j</groupId>
+                <artifactId>rdf4j-rio-hdt</artifactId>
+                <version>${rdf4j.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!-- Repository locations to deploy to -->
     <distributionManagement>
@@ -56,7 +97,7 @@
             <!-- Compile and build to specific Java version -->
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
                     <compilerArgs>
@@ -69,6 +110,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven-jar-plugin.version}</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -88,6 +130,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven-dependency-plugin.version}</version>
                 <executions>
                     <!-- Copies JAR depenencies into lib directory -->
                     <execution>
@@ -106,7 +149,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.6.1</version>
+                <version>${maven-surefire-plugin.version}</version>
             </plugin>
         </plugins>
     </build>
@@ -117,9 +160,9 @@
 
         <!-- Servlet API -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>${jakarta.servlet.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -127,7 +170,7 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <version>3.14.9</version>
+            <version>${jooq.version}</version>
         </dependency>
 
         <!-- For constructing sparql queries, used in time series -->
@@ -141,14 +184,14 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.2</version>
+            <version>${postgresql.version}</version>
         </dependency>
 
         <!-- ??? -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.0.0-jre</version>
+            <version>${guava.version}</version>
         </dependency>
 
         <!-- Spring context used by converter configuration and the servlet controller annotation. -->
@@ -180,19 +223,24 @@
             <artifactId>log4j-core</artifactId>
             <version>${log4j.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
 
         <!-- Processing JSON content -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20240205</version>
+            <version>${json.version}</version>
         </dependency>
 
         <!-- ??? -->
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>${apache.httpcomponents.version}</version>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>${httpcomponents5.version}</version>
         </dependency>
 
         <!-- Jena's blank-node handling requires MurmurHash3, which is not in the older
@@ -200,7 +248,7 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.16.1</version>
+            <version>${commons-codec.version}</version>
         </dependency>
 
         <!-- ??? -->
@@ -222,24 +270,36 @@
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-jdbc-core</artifactId>
-            <version>${jena.version}</version>
+            <version>${jena.jdbc.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-jdbc-driver-remote</artifactId>
-            <version>${jena.version}</version>
+            <version>${jena.jdbc.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- ??? -->
         <dependency>
             <groupId>jakarta.ws.rs</groupId>
             <artifactId>jakarta.ws.rs-api</artifactId>
-            <version>2.1.6</version>
+            <version>${jakarta.ws.rs.version}</version>
         </dependency>
         <!-- ??? -->
         <dependency>
             <groupId>net.sf.py4j</groupId>
             <artifactId>py4j</artifactId>
-            <version>0.10.9.7</version>
+            <version>${py4j.version}</version>
         </dependency>
 
         <!-- Following RDF4J dependencies are added for enabling the federated query
@@ -259,20 +319,20 @@
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-core</artifactId>
-            <version>1.5.2</version>
+            <version>${jgrapht.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.10.2</version>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.2</version>
+            <version>${junit4.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -288,7 +348,7 @@
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
-            <version>3.0.1</version>
+            <version>${wiremock.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -296,20 +356,20 @@
         applications (e.g. postgres, Blazegraph) -->
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>1.21.4</version>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.21.4</version>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>1.21.4</version>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -323,7 +383,7 @@
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>5.9</version>
+            <version>${opencsv.version}</version>
         </dependency>
         <!-- TBoxGeneration uses ExtensionFileFilter from JCommon. -->
         <dependency>
@@ -334,28 +394,28 @@
         <dependency>
             <groupId>net.sourceforge.owlapi</groupId>
             <artifactId>owlapi-distribution</artifactId>
-            <version>5.5.0</version>
+            <version>${owlapi.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/commons-validator/commons-validator -->
         <dependency>
             <groupId>commons-validator</groupId>
             <artifactId>commons-validator</artifactId>
-            <version>1.8.0</version>
+            <version>${commons-validator.version}</version>
         </dependency>
 
         <!-- used in remote store client to upload rdf file -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.15.1</version>
+            <version>${commons-io.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/net.postgis/postgis-jdbc -->
         <dependency>
             <groupId>net.postgis</groupId>
             <artifactId>postgis-jdbc</artifactId>
-            <version>2.5.1</version>
+            <version>${postgis.version}</version>
         </dependency>
 
         <!-- Required to provide classes including
@@ -391,7 +451,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>3.6.1</version>
+                        <version>${build-helper-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>add-jmh-source</id>
