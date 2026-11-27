@@ -23,9 +23,8 @@ import org.eclipse.rdf4j.sparqlbuilder.core.query.Queries;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.SelectQuery;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf;
 import org.json.JSONArray;
-import org.junit.Assert;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -104,12 +103,11 @@ public class AuthenticatedRemoteStoreIntegrationTest {
         String update = "insert data { <" + s + "> <" + p + "> <" + o + "> }";
 
         // execute update by post without credentials
-        Assert.assertThrows("Unauthenticated store client should not be able to update by post.",
-                JPSRuntimeException.class, () -> {
-                    try (CloseableHttpResponse _ = authenticatedStoreClient
-                            .executeUpdateByPost(update)) {
-                    }
-                });
+        Assertions.assertThrows(JPSRuntimeException.class, () -> {
+            try (CloseableHttpResponse _ = unauthenticatedStoreClient
+                    .executeUpdateByPost(update)) {
+            }
+        }, "Unauthenticated store client should not be able to update by post.");
     }
 
     @Test
@@ -123,16 +121,17 @@ public class AuthenticatedRemoteStoreIntegrationTest {
 
         // construct a simple query for the first set of triple
         JSONArray result = authenticatedStoreClient.executeQuery(ONE_TRIPLE_QUERY);
-        Assert.assertEquals(1, result.length());
-        Assert.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
+        Assertions.assertEquals(1, result.length());
+        Assertions.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
     }
 
     @Test
     void testUploadFileUnauthorised() throws URISyntaxException, InterruptedException {
         File testOwl = getTestOwlFile();
         // upload file without credentials
-        Assert.assertThrows("Unauthenticated store client should not be able to upload a file.",
-                JPSRuntimeException.class, () -> unauthenticatedStoreClient.uploadFile(testOwl));
+        Assertions.assertThrows(JPSRuntimeException.class,
+                () -> unauthenticatedStoreClient.uploadFile(testOwl),
+                "Unauthenticated store client should not be able to upload a file.");
     }
 
     @Test
@@ -162,8 +161,9 @@ public class AuthenticatedRemoteStoreIntegrationTest {
         addTriples();
 
         // run query without credentials
-        Assert.assertThrows("Unauthenticated store client should not be able to run a query.",
-                JPSRuntimeException.class, () -> unauthenticatedStoreClient.executeQuery(TWO_TRIPLE_QUERY));
+        Assertions.assertThrows(JPSRuntimeException.class,
+                () -> unauthenticatedStoreClient.executeQuery(TWO_TRIPLE_QUERY),
+                "Unauthenticated store client should not be able to run a query.");
     }
 
     @Test
@@ -172,9 +172,9 @@ public class AuthenticatedRemoteStoreIntegrationTest {
 
         // run query with credentials
         JSONArray result = authenticatedStoreClient.executeQuery(TWO_TRIPLE_QUERY);
-        Assert.assertEquals(1, result.length());
-        Assert.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
-        Assert.assertEquals(o2, result.getJSONObject(0).getString(VAR2_NAME));
+        Assertions.assertEquals(1, result.length());
+        Assertions.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
+        Assertions.assertEquals(o2, result.getJSONObject(0).getString(VAR2_NAME));
     }
 
     private void addTriples() {
@@ -193,8 +193,9 @@ public class AuthenticatedRemoteStoreIntegrationTest {
         unauthorisedFedRemoteStore.addRemoteStore(new RemoteStore("kb", defaultEndpoint));
         unauthorisedFedRemoteStore.addRemoteStore(new RemoteStore("test", otherEndpoint));
 
-        Assert.assertThrows("Unauthenticated store client should not be able to run a federated query.",
-                RuntimeException.class, () -> unauthorisedFedRemoteStore.executeFederatedQuery(TWO_TRIPLE_QUERY));
+        Assertions.assertThrows(RuntimeException.class,
+                () -> unauthorisedFedRemoteStore.executeFederatedQuery(TWO_TRIPLE_QUERY),
+                "Unauthenticated store client should not be able to run a federated query.");
 
     }
 
@@ -213,9 +214,9 @@ public class AuthenticatedRemoteStoreIntegrationTest {
 
         // run a federated query and check whether the results obtained is correct
         JSONArray result = authorisedFedRemoteStore.executeFederatedQuery(TWO_TRIPLE_QUERY);
-        Assert.assertEquals(1, result.length());
-        Assert.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
-        Assert.assertEquals(o2, result.getJSONObject(0).getString(VAR2_NAME));
+        Assertions.assertEquals(1, result.length());
+        Assertions.assertEquals(o, result.getJSONObject(0).getString(VAR1_NAME));
+        Assertions.assertEquals(o2, result.getJSONObject(0).getString(VAR2_NAME));
 
     }
 

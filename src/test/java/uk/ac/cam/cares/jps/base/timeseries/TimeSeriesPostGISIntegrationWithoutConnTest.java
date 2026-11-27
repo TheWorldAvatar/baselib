@@ -6,10 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
@@ -35,7 +35,7 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
     // RDB client
     protected TimeSeriesRDBClientInterface<Integer> tsClient;
 
-    @Before
+    @BeforeEach
     public void initialiseRDBClientAndTable() {
         postgres.start();
         setRdbClient();
@@ -51,7 +51,7 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
         tsClient = new TimeSeriesRDBClient<>(Integer.class);
     }
 
-    @After
+    @AfterEach
     public void clearDatabase() throws SQLException {
         try (Connection conn = tsClient.getConnection()) {
             tsClient.deleteAll(conn);
@@ -76,7 +76,7 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
         TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"), values);
 
         // upload to database
-        Assert.assertThrows(JPSRuntimeException.class,
+        Assertions.assertThrows(JPSRuntimeException.class,
                 () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload)));
     }
 
@@ -95,7 +95,7 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
 
         TimeSeries<Integer> tsUpload = new TimeSeries<Integer>(Arrays.asList(1), Arrays.asList("http://data1"), values);
         // upload to database
-        Assert.assertThrows(JPSRuntimeException.class,
+        Assertions.assertThrows(JPSRuntimeException.class,
                 () -> tsClient.addTimeSeriesData(Arrays.asList(tsUpload)));
     }
 
@@ -118,6 +118,6 @@ public class TimeSeriesPostGISIntegrationWithoutConnTest {
         // query and check if it's the same
         Point queriedPoint = tsClient.getTimeSeries(Arrays.asList("http://data1")).getValuesAsPoint("http://data1")
                 .get(0);
-        Assert.assertTrue(queriedPoint.equals(point));
+        Assertions.assertTrue(queriedPoint.equals(point));
     }
 }

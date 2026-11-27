@@ -1,11 +1,11 @@
 package uk.ac.cam.cares.jps.base.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.lang.reflect.Field;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * This class provides unit tests for the RemoteRDBStoreClient class

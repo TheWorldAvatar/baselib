@@ -1,9 +1,9 @@
 package uk.ac.cam.cares.jps.base.query;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -22,8 +22,8 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.update.UpdateRequest;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
@@ -368,14 +368,14 @@ public class RemoteStoreClientTest {
 	@Test
 	public void testExecuteQueryAndUpdateException() {
 		RemoteStoreClient kbClient = new RemoteStoreClient(queryEndpoint, updateEndpoint);
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> kbClient.executeUpdate(formMechanismCountQuery()));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(formMechanismCountQuery()));
 
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> kbClient.executeQuery(formDeleteQuery()));
-		Assert.assertTrue(e.getMessage()
+		Assertions.assertTrue(e.getMessage()
 				.contains(formDeleteQuery()));
 	}
 

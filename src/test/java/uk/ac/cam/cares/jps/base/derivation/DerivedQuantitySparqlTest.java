@@ -30,10 +30,10 @@ import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
 import org.eclipse.rdf4j.sparqlbuilder.rdf.Rdf;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import uk.ac.cam.cares.jps.base.exception.JPSRuntimeException;
 
@@ -288,14 +288,14 @@ public class DerivedQuantitySparqlTest {
 	private String input2ParentRdfType = "http://input2/parent_rdftype";
 	private String derivedAgentOperation2 = "http://derivedagent1/Operation2";
 
-	@Before
+	@BeforeEach
 	public void initialiseSparqlClient() {
 		OntModel kb = ModelFactory.createOntologyModel();
 		mockClient = new MockDevStoreClient(kb);
 		devClient = new DerivationSparql(mockClient, derivationInstanceBaseURL);
 	}
 
-	@After
+	@AfterEach
 	public void closeKnowledgeBase() {
 		mockClient.closeKnowledgeBase();
 	}
@@ -314,13 +314,13 @@ public class DerivedQuantitySparqlTest {
 				ResourceFactory.createProperty(hasOperation)).getObject().toString();
 		Literal httpUrlAdded = testKG.getProperty(ResourceFactory.createResource(operationIRI),
 				ResourceFactory.createProperty(hasHttpUrl)).getObject().asLiteral();
-		Assert.assertEquals(ontoAgentOperationHttpUrl, httpUrlAdded.getString());
-		Assert.assertEquals(XSD.ANYURI.toString(), httpUrlAdded.getDatatypeURI());
+		Assertions.assertEquals(ontoAgentOperationHttpUrl, httpUrlAdded.getString());
+		Assertions.assertEquals(XSD.ANYURI.toString(), httpUrlAdded.getDatatypeURI());
 
 		// retrieve IRI of OntoAgent:Operation instance added for later test
 		JSONArray result = mockClient.executeQuery(
 				String.format("select ?operation where {<%s> <%s> ?operation.}", ontoAgentServiceIRI, hasOperation));
-		Assert.assertEquals(1, result.length());
+		Assertions.assertEquals(1, result.length());
 		String operationIRIAdded = result.getJSONObject(0).getString("operation");
 
 		// create ontoagent instance with the same input arguments again, but nothing should happen
@@ -328,8 +328,8 @@ public class DerivedQuantitySparqlTest {
 		// check there should only be one instance of OntoAgent:Operation that got added
 		JSONArray result2 = mockClient.executeQuery(
 				String.format("select ?operation where {<%s> <%s> ?operation.}", ontoAgentServiceIRI, hasOperation));
-		Assert.assertEquals(1, result2.length());
-		Assert.assertEquals(operationIRIAdded, result2.getJSONObject(0).getString("operation"));
+		Assertions.assertEquals(1, result2.length());
+		Assertions.assertEquals(operationIRIAdded, result2.getJSONObject(0).getString("operation"));
 	}
 
 	@Test
@@ -338,10 +338,10 @@ public class DerivedQuantitySparqlTest {
 		String derivation = devClient.createDerivation(entities, derivedAgentIRI, inputs);
 		String statusIRI = devClient.markAsRequested(derivation);
 		OntModel testKG = mockClient.getKnowledgeBase();
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 	}
@@ -357,23 +357,23 @@ public class DerivedQuantitySparqlTest {
 		devClient.markAsRequestedIfOutdated(derivation);
 
 		// get an exception by checking if the inputs are allowed to be outputs for other derivations
-		JPSRuntimeException exc = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException exc = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.allowedAsDerivationOutputs(inputs));
 
 		String excComment = devClient.markAsError(derivation, exc);
-		Assert.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation));
+		Assertions.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation));
 
 		String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
 		String errMsg = testKG.getProperty(ResourceFactory.createResource(statusIRI),
 				 ResourceFactory.createProperty(RDFS.comment.getURI())).getObject()
 				 .asLiteral().getString();
-		Assert.assertEquals(excComment, errMsg);
+		Assertions.assertEquals(excComment, errMsg);
 
-		Assert.assertTrue(errMsg.contains(exc.getClass().toString()));
-		Assert.assertTrue(errMsg.contains(exc.getMessage()));
+		Assertions.assertTrue(errMsg.contains(exc.getClass().toString()));
+		Assertions.assertTrue(errMsg.contains(exc.getMessage()));
 		for (StackTraceElement st : exc.getStackTrace()) {
-			Assert.assertTrue(errMsg.contains(st.toString()));
+			Assertions.assertTrue(errMsg.contains(st.toString()));
 		}
 	}
 
@@ -399,7 +399,7 @@ public class DerivedQuantitySparqlTest {
 				 ResourceFactory.createProperty(RDFS.comment.getURI())).getObject()
 				 .asLiteral().getString();
 		// the returned value from devClient.markAsError should match the added to triple store
-		Assert.assertEquals(excComment, errMsg);
+		Assertions.assertEquals(excComment, errMsg);
 	}
 
 	@Test
@@ -416,13 +416,13 @@ public class DerivedQuantitySparqlTest {
 		devClient.markAsRequestedIfOutdated(derivation2);
 
 		// get an exception by checking if the inputs are allowed to be outputs for other derivations
-		JPSRuntimeException exc = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException exc = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.allowedAsDerivationOutputs(inputs));
 
 		String excComment = devClient.markAsError(derivation, exc);
 		String excComment2 = devClient.markAsError(derivation2, exc);
-		Assert.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation));
-		Assert.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation2));
+		Assertions.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation));
+		Assertions.assertEquals(StatusType.ERROR, devClient.getStatusType(derivation2));
 
 		String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
@@ -434,18 +434,18 @@ public class DerivedQuantitySparqlTest {
 		String errMsg2 = testKG.getProperty(ResourceFactory.createResource(statusIRI2),
 				ResourceFactory.createProperty(RDFS.comment.getURI())).getObject()
 				.asLiteral().getString();
-		Assert.assertEquals(errMsg, errMsg2);
-		Assert.assertEquals(excComment, errMsg.replace("\n", "\\n"));
-		Assert.assertEquals(excComment2, errMsg.replace("\n", "\\n"));
+		Assertions.assertEquals(errMsg, errMsg2);
+		Assertions.assertEquals(excComment, errMsg.replace("\n", "\\n"));
+		Assertions.assertEquals(excComment2, errMsg.replace("\n", "\\n"));
 		List<Derivation> derivations = devClient.getDerivationsInErrorStatus(derivedAgentIRI);
-		Assert.assertEquals(2, derivations.size());
-		Assert.assertEquals(errMsg, derivations.get(0).getErrMsg());
-		Assert.assertEquals(errMsg, derivations.get(1).getErrMsg());
+		Assertions.assertEquals(2, derivations.size());
+		Assertions.assertEquals(errMsg, derivations.get(0).getErrMsg());
+		Assertions.assertEquals(errMsg, derivations.get(1).getErrMsg());
 
-		Assert.assertTrue(errMsg.contains(exc.getClass().toString()));
-		Assert.assertTrue(errMsg.contains(exc.getMessage()));
+		Assertions.assertTrue(errMsg.contains(exc.getClass().toString()));
+		Assertions.assertTrue(errMsg.contains(exc.getMessage()));
 		for (StackTraceElement st : exc.getStackTrace()) {
-			Assert.assertTrue(errMsg.contains(st.toString()));
+			Assertions.assertTrue(errMsg.contains(st.toString()));
 		}
 	}
 
@@ -463,16 +463,16 @@ public class DerivedQuantitySparqlTest {
 		// up-to-date, thus nothing should happen if execute
 		devClient.markAsRequestedIfOutdated(upstreamDerivation);
 		OntModel testKG = mockClient.getKnowledgeBase();
-		Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(upstreamDerivation),
+		Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(upstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 		// for the downstream derivations, the status should be mark as requested as its timestamp
 		// is initialised as 0, also this tests the case where no outputs are generated from the upstream
 		devClient.markAsRequestedIfOutdated(downstreamDerivation);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(downstreamDerivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(downstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 		String downstreamStatusIRI = testKG.getProperty(ResourceFactory.createResource(downstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(downstreamStatusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(downstreamStatusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 
@@ -483,20 +483,20 @@ public class DerivedQuantitySparqlTest {
 			devClient.updateTimeStamp(input);
 		}
 		devClient.markAsRequestedIfOutdated(upstreamDerivation);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(upstreamDerivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(upstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 		String statusIRI = testKG.getProperty(ResourceFactory.createResource(upstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 
 		// case 3: if now we execute to mark up again, then nothing should happen
 		devClient.markAsRequestedIfOutdated(upstreamDerivation);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(upstreamDerivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(upstreamDerivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 	}
@@ -508,32 +508,32 @@ public class DerivedQuantitySparqlTest {
 		OntModel testKG = mockClient.getKnowledgeBase();
 		// create derivation for markup, no status should be added
 		String derivation = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, false);
-		Assert.assertFalse(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertFalse(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 		// mark derivation as Requested
 		String statusIRI = devClient.markAsRequested(derivation);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 		// update the status, the rdf:type of status should be updated but its IRI
 		// should remain the same, the timestamp should also exist and NOT less than
 		// "currentTimestamp", the update method itself should also return true
 		long currentTimestamp = Instant.now().getEpochSecond();
-		Assert.assertTrue(devClient.updateStatusBeforeSetupJob(derivation));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(devClient.updateStatusBeforeSetupJob(derivation));
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "InProgress")));
 		long retrievedInputsAt = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "retrievedInputsAt")).getObject()
 				.asLiteral().getLong();
-		Assert.assertTrue(retrievedInputsAt >= currentTimestamp);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(retrievedInputsAt >= currentTimestamp);
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "uuidLock")));
 		String uuid = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "uuidLock")).getObject()
@@ -544,38 +544,38 @@ public class DerivedQuantitySparqlTest {
 		// updateStatusBeforeSetupJob will be different from the existing one
 		// the update method call should return false
 		TimeUnit.SECONDS.sleep(2);
-		Assert.assertFalse(devClient.updateStatusBeforeSetupJob(derivation));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertFalse(devClient.updateStatusBeforeSetupJob(derivation));
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "InProgress")));
 		long retrievedInputsAt_new = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "retrievedInputsAt")).getObject()
 				.asLiteral().getLong();
-		Assert.assertEquals(retrievedInputsAt, retrievedInputsAt_new);
+		Assertions.assertEquals(retrievedInputsAt, retrievedInputsAt_new);
 		String uuid_new = testKG.getProperty(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "uuidLock")).getObject()
 				.asLiteral().getString();
-		Assert.assertEquals(uuid, uuid_new);
+		Assertions.assertEquals(uuid, uuid_new);
 	}
 
 	@Test
 	public void testAddUuidLockToFinishedStatus() {
 		OntModel testKG = mockClient.getKnowledgeBase();
 		// (1) should return false for a dummy IRI
-		Assert.assertFalse(devClient.addUuidLockToFinishedStatus("http://dummy_derivation"));
+		Assertions.assertFalse(devClient.addUuidLockToFinishedStatus("http://dummy_derivation"));
 
 		// (2) should return false for a derivation that is up-to-date
 		// create derivation for markup, no status should be added
 		String derivation = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, false);
-		Assert.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
+		Assertions.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
 
 		// (3) should return false for a derivation with status other than Finished
 		// mark derivation as Requested
 		String statusIRI = devClient.markAsRequested(derivation);
-		Assert.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
+		Assertions.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
 
 		// (3) should return true for a derivation with status Finished, also no uuidLock yet
 		// add a placeholder uuidLock which in actual use case will be generated by calling updateStatusBeforeSetupJob
@@ -591,10 +591,10 @@ public class DerivedQuantitySparqlTest {
 		String o = "http://" + UUID.randomUUID().toString();
 		TriplePattern newTriple = Rdf.iri(s).has(Rdf.iri(p), Rdf.iri(o));
 		devClient.updateStatusAtJobCompletion(derivation, entities3, Arrays.asList(newTriple));
-		Assert.assertTrue(devClient.addUuidLockToFinishedStatus(derivation));
+		Assertions.assertTrue(devClient.addUuidLockToFinishedStatus(derivation));
 
 		// (4) should return false for a derivation with status Finished, and uuidLock already
-		Assert.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
+		Assertions.assertFalse(devClient.addUuidLockToFinishedStatus(derivation));
 	}
 
 	@Test
@@ -606,7 +606,7 @@ public class DerivedQuantitySparqlTest {
 		String derivation = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, false);
 		// mark derivation as Requested
 		String statusIRI = devClient.markAsRequested(derivation);
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 		// add a placeholder uuidLock which in actual use case will be generated by calling updateStatusBeforeSetupJob
@@ -622,18 +622,18 @@ public class DerivedQuantitySparqlTest {
 		String o = "http://" + UUID.randomUUID().toString();
 		TriplePattern newTriple = Rdf.iri(s).has(Rdf.iri(p), Rdf.iri(o));
 		devClient.updateStatusAtJobCompletion(derivation, entities3, Arrays.asList(newTriple));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus"),
 				ResourceFactory.createResource(statusIRI)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(RDF.type.getURI()),
 				ResourceFactory.createResource(DerivationSparql.derivednamespace + "Finished")));
 		for (String e : entities3) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasNewDerivedIRI"),
 					ResourceFactory.createResource(e)));
 		}
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(s),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(s),
 				ResourceFactory.createProperty(p), ResourceFactory.createResource(o)));
 	}
 
@@ -652,7 +652,7 @@ public class DerivedQuantitySparqlTest {
 		// update the status, the new derived IRIs should be added
 		devClient.updateStatusAtJobCompletion(derivation, entities3, new ArrayList<>());
 		List<String> newDerivedIRI = devClient.getNewDerivedIRI(derivation);
-		Assert.assertTrue(equalLists(newDerivedIRI, entities3));
+		Assertions.assertTrue(equalLists(newDerivedIRI, entities3));
 	}
 
 	@Test
@@ -664,9 +664,9 @@ public class DerivedQuantitySparqlTest {
 		String derivation2 = devClient.createDerivation(entities2, derivedAgentIRI2, inputs2);
 		String derivation3 = devClient.createDerivationAsync(entities3, derivedAgentIRI3, inputs3, false);
 		// assert derivation type
-		Assert.assertTrue(!devClient.isDerivedAsynchronous(derivation1));
-		Assert.assertTrue(!devClient.isDerivedAsynchronous(derivation2));
-		Assert.assertTrue(devClient.isDerivedAsynchronous(derivation3));
+		Assertions.assertTrue(!devClient.isDerivedAsynchronous(derivation1));
+		Assertions.assertTrue(!devClient.isDerivedAsynchronous(derivation2));
+		Assertions.assertTrue(devClient.isDerivedAsynchronous(derivation3));
 	}
 
 	@Test
@@ -675,7 +675,7 @@ public class DerivedQuantitySparqlTest {
 		String derivation2 = devClient.createDerivation(entities2, derivedAgentIRI1, inputs2);
 		String derivation3 = devClient.createDerivationAsync(entities3, derivedAgentIRI1, inputs3, false);
 		List<String> derivations = devClient.getDerivations(derivedAgentIRI1);
-		Assert.assertTrue(equalLists(Arrays.asList(derivation1, derivation2, derivation3), derivations));
+		Assertions.assertTrue(equalLists(Arrays.asList(derivation1, derivation2, derivation3), derivations));
 	}
 
 	@Test
@@ -683,7 +683,7 @@ public class DerivedQuantitySparqlTest {
 		// create placeholder ontoagent instance to get derivedAgentIRI and derivedAgentURL connected
 		devClient.createOntoAgentInstance(derivedAgentIRI, derivedAgentURL, Arrays.asList("http://i"), Arrays.asList("http://o"));
 		String derivedIRI = devClient.createDerivation(entities, derivedAgentIRI, inputs);
-		Assert.assertEquals(derivedAgentURL, devClient.getAgentUrl(derivedIRI));
+		Assertions.assertEquals(derivedAgentURL, devClient.getAgentUrl(derivedIRI));
 	}
 
 	@Test
@@ -691,7 +691,7 @@ public class DerivedQuantitySparqlTest {
 		// create placeholder ontoagent instance to get derivedAgentIRI and derivedAgentURL connected
 		devClient.createOntoAgentInstance(derivedAgentIRI, derivedAgentURL, Arrays.asList("http://i"), Arrays.asList("http://o"));
 		String derivedIRI = devClient.createDerivation(entities, derivedAgentIRI, inputs);
-		Assert.assertEquals(derivedAgentURL, devClient.getAgentUrlGivenAgentIRI(derivedAgentIRI));
+		Assertions.assertEquals(derivedAgentURL, devClient.getAgentUrlGivenAgentIRI(derivedAgentIRI));
 	}
 
 	@Test
@@ -700,7 +700,7 @@ public class DerivedQuantitySparqlTest {
 		List<String> queriedInputs = devClient.getInputs(derivedIRI);
 
 		for (String queriedInput : queriedInputs) {
-			Assert.assertTrue(inputs.contains(queriedInput));
+			Assertions.assertTrue(inputs.contains(queriedInput));
 		}
 	}
 
@@ -708,11 +708,11 @@ public class DerivedQuantitySparqlTest {
 	public void testGetInputsAndDerived() {
 		// when an input is not a derived quantity
 		String derivedIRI = devClient.createDerivation(entities, derivedAgentIRI, inputs);
-		Assert.assertTrue(devClient.getInputsAndDerived(derivedIRI).containsAll(inputs));
+		Assertions.assertTrue(devClient.getInputsAndDerived(derivedIRI).containsAll(inputs));
 
 		// when an input is a derived quantity
 		String derivedIRI2 = devClient.createDerivation(Arrays.asList(entity3), derivedAgentIRI, entities);
-		Assert.assertTrue(devClient.getInputsAndDerived(derivedIRI2).contains(derivedIRI));
+		Assertions.assertTrue(devClient.getInputsAndDerived(derivedIRI2).contains(derivedIRI));
 	}
 
 	@Test
@@ -721,14 +721,14 @@ public class DerivedQuantitySparqlTest {
 
 		Map<String, String> derivationsOf = devClient.getDerivationsOf(entities);
 		for (String entity : entities) {
-			Assert.assertEquals(derivedIRI, derivationsOf.get(entity));
+			Assertions.assertEquals(derivedIRI, derivationsOf.get(entity));
 		}
 	}
 
 	@Test
 	public void testGetTimestamp() {
 		// no time stamp yet
-		Assert.assertThrows(JPSRuntimeException.class, () -> devClient.getTimestamp(input1));
+		Assertions.assertThrows(JPSRuntimeException.class, () -> devClient.getTimestamp(input1));
 
 		// timestamp attached directly to input
 		devClient.addTimeInstance(input1);
@@ -739,7 +739,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.addTimeInstance(derivedIRI);
 
 		for (String entity : entities) {
-			Assert.assertEquals(devClient.getTimestamp(derivedIRI), devClient.getTimestamp(entity));
+			Assertions.assertEquals(devClient.getTimestamp(derivedIRI), devClient.getTimestamp(entity));
 		}
 	}
 
@@ -752,7 +752,7 @@ public class DerivedQuantitySparqlTest {
 		long oldtime = devClient.getTimestamp(derivedIRI);
 		devClient.updateTimeStamp(derivedIRI);
 		long newtime = devClient.getTimestamp(derivedIRI);
-		Assert.assertTrue(newtime > oldtime);
+		Assertions.assertTrue(newtime > oldtime);
 	}
 
 	@Test
@@ -764,18 +764,18 @@ public class DerivedQuantitySparqlTest {
 		devClient.addTimeInstance(derivation); // timestamp initialised as 0
 
 		// case 1: no status are added, only update timestamp
-		Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 		// update timestamp and delete status
 		devClient.updateTimestampDeleteStatus(derivation, timestamp);
 
 		// timestamp should be updated
 		long addedTimestamp = devClient.getTimestamp(derivation);
-		Assert.assertEquals(timestamp, addedTimestamp);
+		Assertions.assertEquals(timestamp, addedTimestamp);
 
 		// case 2: derivation is marked with status
 		String statusIRI = devClient.markAsRequested(derivation);
-		Assert.assertNotNull(testKG.getIndividual(statusIRI));
+		Assertions.assertNotNull(testKG.getIndividual(statusIRI));
 		// add triples about new derived IRI
 		testKG.add(ResourceFactory.createResource(statusIRI),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasNewDerivedIRI"),
@@ -790,10 +790,10 @@ public class DerivedQuantitySparqlTest {
 		devClient.updateTimestampDeleteStatus(derivation, newTS);
 
 		// status and the connection with new derived IRI should be deleted
-		Assert.assertNull(testKG.getIndividual(statusIRI));
+		Assertions.assertNull(testKG.getIndividual(statusIRI));
 		// timestamp should be updated
 		addedTimestamp = devClient.getTimestamp(derivation);
-		Assert.assertEquals(newTS, addedTimestamp);
+		Assertions.assertEquals(newTS, addedTimestamp);
 	}
 
 	@Test
@@ -822,28 +822,28 @@ public class DerivedQuantitySparqlTest {
 
 		// test if derivation was created correctly
 		// agent
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedUsing"),
 				ResourceFactory.createResource(derivedAgentIRI)));
 		// outputs
 		for (String instance : oldInstances) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivation)));
 		}
 		// inputs
 		for (String input : inputs) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 					ResourceFactory.createResource(input)));
 		}
 		// new instance set 1 should NOT be created
 		newInstanceMap1.keySet().stream().forEach(instance -> {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		});
 		// new instance set 2 should NOT be created
 		newInstanceMap2.keySet().stream().forEach(instance -> {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		});
 
 		// case 1: derivation is outdated, now delete and add new instances should work
@@ -851,27 +851,27 @@ public class DerivedQuantitySparqlTest {
 		devClient.reconnectSyncDerivation(derivation, newInstanceMap1, newTriples1, retrievedInputsAt);
 		// all old outputs should be deleted
 		for (String instance : oldInstances) {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		}
 		// new outputs should be connected to this derivation, and its downstreams
 		newInstanceMap1.forEach((instance, dds) -> {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivation)));
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance), RDF.type));
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance), RDF.type));
 			if (!dds.isEmpty()) {
 				dds.stream().forEach(dd -> {
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(dd),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(dd),
 							ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 							ResourceFactory.createResource(instance)));
 				});
 			}
 		});
 		// timestamp should be updated
-		Assert.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
+		Assertions.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
 		// new instance set 2 should not be created
 		newInstanceMap2.keySet().stream().forEach(instance -> {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		});
 
 		// case 2: as now the timestamp of this derivation is up-to-date, nothing should
@@ -880,40 +880,40 @@ public class DerivedQuantitySparqlTest {
 		// repeat all checks after case 1
 		// all old outputs should be deleted
 		for (String instance : oldInstances) {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		}
 		// new outputs should be connected to this derivation, and its downstreams
 		newInstanceMap1.forEach((instance, dds) -> {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivation)));
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance), RDF.type));
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance), RDF.type));
 			if (!dds.isEmpty()) {
 				dds.stream().forEach(dd -> {
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(dd),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(dd),
 							ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 							ResourceFactory.createResource(instance)));
 				});
 			}
 		});
 		// timestamp should be updated
-		Assert.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
+		Assertions.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
 		// new instance set 2 should not be created
 		newInstanceMap2.keySet().stream().forEach(instance -> {
-			Assert.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
+			Assertions.assertTrue(Objects.isNull(testKG.getIndividual(instance)));
 		});
 	}
 
 	@Test
 	public void testCreateDerivationIRI() {
 		String derivationIRI = devClient.createDerivationIRI(DerivationSparql.ONTODERIVATION_DERIVATION);
-		Assert.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATION + "_"));
+		Assertions.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATION + "_"));
 
 		derivationIRI = devClient.createDerivationIRI(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES);
-		Assert.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATIONWITHTIMESERIES + "_"));
+		Assertions.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATIONWITHTIMESERIES + "_"));
 
 		derivationIRI = devClient.createDerivationIRI(DerivationSparql.ONTODERIVATION_DERIVATIONASYN);
-		Assert.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATIONASYN + "_"));
+		Assertions.assertTrue(derivationIRI.startsWith(derivationInstanceBaseURL + DerivationSparql.DERIVATIONASYN + "_"));
 	}
 
 	@Test
@@ -947,32 +947,32 @@ public class DerivedQuantitySparqlTest {
 
 		// test if derivation was created correctly
 		// derivation
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation), RDF.type,
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation), RDF.type,
 				ResourceFactory.createResource(derivationType)));
 		// agent
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedUsing"),
 				ResourceFactory.createResource(derivedAgentIRI)));
 		// outputs
 		for (String instance : entities) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(instance),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivation)));
 		}
 		// inputs
 		for (String input : inputs) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivation),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 					ResourceFactory.createResource(input)));
 		}
 		// timestamp
-		Assert.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
+		Assertions.assertEquals(retrievedInputsAt, devClient.getTimestamp(derivation));
 		// outputs triples
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(a),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(a),
 				ResourceFactory.createProperty(a_p), ResourceFactory.createResource(a_v)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(b),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(b),
 				ResourceFactory.createProperty(b_p), ResourceFactory.createResource(b_v)));
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(c),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(c),
 				ResourceFactory.createProperty(c_p), ResourceFactory.createResource(c_v)));
 	}
 
@@ -985,15 +985,15 @@ public class DerivedQuantitySparqlTest {
 		// case 2: entity already belongsTo other derivations
 		// mark derivation now, then the function should throw error
 		devClient.createDerivation(entities, derivedAgentIRI, inputs);
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.allowedAsDerivationOutputs(entities));
-		Assert.assertTrue(e.getMessage().contains("already part of another derivation"));
+		Assertions.assertTrue(e.getMessage().contains("already part of another derivation"));
 
 		// case 3: entity already has timestamp, is pure input
 		// should throw error
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.allowedAsDerivationOutputs(inputs));
-		Assert.assertTrue(e.getMessage().contains("have time instances"));
+		Assertions.assertTrue(e.getMessage().contains("have time instances"));
 	}
 
 	@Test
@@ -1015,42 +1015,42 @@ public class DerivedQuantitySparqlTest {
 			List<String> entities = entitiesList.get(i);
 			List<String> inputs = inputsList.get(i);
 
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
 
 			for (String entity : entities) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 						ResourceFactory.createResource(derivations.get(i))));
 			}
 
 			for (String input : inputs) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 						ResourceFactory.createResource(input)));
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(input),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(input),
 						ResourceFactory.createProperty(p_time + "hasTime")));
 			}
 		}
 
 		// an instance cannot be part of two derivations
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(entitiesList, agentIRIList, inputsList));
-		Assert.assertTrue(e.getMessage().contains("part of another derivation"));
+		Assertions.assertTrue(e.getMessage().contains("part of another derivation"));
 		for (String d : derivations) {
-			Assert.assertTrue(e.getMessage().contains(d));
+			Assertions.assertTrue(e.getMessage().contains(d));
 		}
 		for (String en : entitiesList.stream().flatMap(List::stream).collect(Collectors.toList())) {
-			Assert.assertTrue(e.getMessage().contains(en));
+			Assertions.assertTrue(e.getMessage().contains(en));
 		}
 
 		// an instance cannot be marked belongsTo more than one derivation
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(
 						Arrays.asList(entities3, entities3),
 						Arrays.asList(derivedAgentIRI, derivedAgentIRI2),
 						Arrays.asList(inputs1, inputs3)
 				));
-		Assert.assertTrue(e.getMessage().contains("Entity will be marked belongsTo more than one derivations"));
+		Assertions.assertTrue(e.getMessage().contains("Entity will be marked belongsTo more than one derivations"));
 	}
 
 	@Test
@@ -1064,46 +1064,46 @@ public class DerivedQuantitySparqlTest {
 
 		// inputs cancelled out
 		// e1 --> d1 --> i1. i1 --> d2 --> e1.
-		JPSRuntimeException e = Assert.assertThrows(JPSRuntimeException.class,
+		JPSRuntimeException e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(Arrays.asList(Arrays.asList(input1), Arrays.asList(entity1)),
 						Arrays.asList(derivedAgentIRI, derivedAgentIRI2),
 						Arrays.asList(Arrays.asList(entity1), Arrays.asList(input1))));
-		Assert.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
+		Assertions.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
 
 		// inputs cancelled out
 		// e2 --> e1. e1 --> i1. i1 --> e2.
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(
 						Arrays.asList(Arrays.asList(entity2), Arrays.asList(entity1), Arrays.asList(input1)),
 						Arrays.asList(derivedAgentIRI, derivedAgentIRI2, derivedAgentIRI3),
 						Arrays.asList(Arrays.asList(entity1), Arrays.asList(input1), Arrays.asList(entity2))));
-		Assert.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
+		Assertions.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
 
 		// inputs cancelled out
 		// e2 --> e1. e1 --> i1, i2. i1, i2 --> e1.
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(
 						Arrays.asList(Arrays.asList(entity2), Arrays.asList(entity1), Arrays.asList(input1, input2)),
 						Arrays.asList(derivedAgentIRI, derivedAgentIRI2, derivedAgentIRI3),
 						Arrays.asList(Arrays.asList(entity1), Arrays.asList(input1, input2), Arrays.asList(entity2))));
-		Assert.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
+		Assertions.assertTrue(e.getMessage().contains("All inputs are cancelled out"));
 
 		// same IRI exist in both inputs and outputs
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(
 						Arrays.asList(Arrays.asList(entity1)),
 						Arrays.asList(derivedAgentIRI),
 						Arrays.asList(Arrays.asList(entity1))));
-		Assert.assertTrue(e.getMessage().contains("Intersection between inputs and outputs for the same derivation markup"));
+		Assertions.assertTrue(e.getMessage().contains("Intersection between inputs and outputs for the same derivation markup"));
 
 		// entity will be belongsTo more than one derivation
 		// e2 --> e1. e1 --> i1. e1 --> e2.
-		e = Assert.assertThrows(JPSRuntimeException.class,
+		e = Assertions.assertThrows(JPSRuntimeException.class,
 				() -> devClient.bulkCreateDerivations(
 						Arrays.asList(Arrays.asList(entity2), Arrays.asList(entity1), Arrays.asList(entity1)),
 						Arrays.asList(derivedAgentIRI, derivedAgentIRI2, derivedAgentIRI3),
 						Arrays.asList(Arrays.asList(entity1), Arrays.asList(input1), Arrays.asList(entity2))));
-		Assert.assertTrue(e.getMessage().contains("Entity will be marked belongsTo more than one derivations"));
+		Assertions.assertTrue(e.getMessage().contains("Entity will be marked belongsTo more than one derivations"));
 	}
 
 	@Test
@@ -1113,25 +1113,25 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
-		Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRI).getRDFType());
+		Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRI).getRDFType());
 
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedUsing"),
 				ResourceFactory.createResource(derivedAgentIRI)));
 
 		for (String entity : entities) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivationIRI)));
 		}
 
 		for (String input : inputs) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 					ResourceFactory.createResource(input)));
 		}
 
-		Assert.assertEquals(StatusType.REQUESTED, devClient.getStatusType(derivationIRI));
+		Assertions.assertEquals(StatusType.REQUESTED, devClient.getStatusType(derivationIRI));
 	}
 
 	@Test
@@ -1141,25 +1141,25 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
-		Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRI).getRDFType());
+		Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRI).getRDFType());
 
-		Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
+		Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
 				ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedUsing"),
 				ResourceFactory.createResource(derivedAgentIRI)));
 
 		for (String entity : entities) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 					ResourceFactory.createResource(derivationIRI)));
 		}
 
 		for (String input : inputs) {
-			Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
+			Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRI),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 					ResourceFactory.createResource(input)));
 		}
 
-		Assert.assertEquals(StatusType.NOSTATUS, devClient.getStatusType(derivationIRI));
+		Assertions.assertEquals(StatusType.NOSTATUS, devClient.getStatusType(derivationIRI));
 	}
 
 	@Test
@@ -1176,16 +1176,16 @@ public class DerivedQuantitySparqlTest {
 			List<String> entities = entitiesList.get(i);
 			List<String> inputs = inputsList.get(i);
 
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
 
 			for (String entity : entities) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 						ResourceFactory.createResource(derivations.get(i))));
 			}
 
 			for (String input : inputs) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 						ResourceFactory.createResource(input)));
 			}
@@ -1208,30 +1208,30 @@ public class DerivedQuantitySparqlTest {
 			List<String> entities = entitiesList.get(i);
 			List<String> inputs = inputsList.get(i);
 
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivations.get(i)).getRDFType());
 
 			for (String entity : entities) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 						ResourceFactory.createResource(derivations.get(i))));
 			}
 
 			for (String input : inputs) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 						ResourceFactory.createResource(input)));
 			}
 
 			if (forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -1256,31 +1256,31 @@ public class DerivedQuantitySparqlTest {
 			List<String> entities = entitiesListChain5.get(i);
 			List<String> inputs = inputsListChain5.get(i);
 
-			Assert.assertEquals(derivationTypeResourceList.get(i),
+			Assertions.assertEquals(derivationTypeResourceList.get(i),
 					testKG.getIndividual(derivations.get(i)).getRDFType());
 
 			for (String entity : entities) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(entity),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "belongsTo"),
 						ResourceFactory.createResource(derivations.get(i))));
 			}
 
 			for (String input : inputs) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "isDerivedFrom"),
 						ResourceFactory.createResource(input)));
 			}
 
 			if (forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivations.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivations.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -1307,9 +1307,9 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.getInputsMapToAgent(derivationIRI, derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1).toList().stream().map(i -> (String) i).collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2).toList().stream().map(i -> (String) i).collect(Collectors.toList())));
 	}
 
@@ -1334,9 +1334,9 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.mapInstancesToAgentInputs(Arrays.asList(input1, input2), derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1).toList().stream().map(i -> (String) i).collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2).toList().stream().map(i -> (String) i).collect(Collectors.toList())));
 	}
 
@@ -1369,10 +1369,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.getInputsMapToAgent(derivationIRI, derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1406,10 +1406,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.mapInstancesToAgentInputs(Arrays.asList(input1, input2), derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1439,10 +1439,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.getInputsMapToAgent(derivationIRI, derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1RdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2RdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1472,10 +1472,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.mapInstancesToAgentInputs(Arrays.asList(input1, input2), derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1RdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2RdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1507,10 +1507,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.getInputsMapToAgent(derivationIRI, derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1542,10 +1542,10 @@ public class DerivedQuantitySparqlTest {
 		boolean forUpdate = true;
 		String derivationIRI = devClient.createDerivationAsync(entities, derivedAgentIRI, inputs, forUpdate);
 		JSONObject mappedInputs = devClient.mapInstancesToAgentInputs(Arrays.asList(input1, input2), derivedAgentIRI);
-		Assert.assertTrue(equalLists(Arrays.asList(input1),
+		Assertions.assertTrue(equalLists(Arrays.asList(input1),
 				mappedInputs.getJSONArray(input1ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(Arrays.asList(input2),
+		Assertions.assertTrue(equalLists(Arrays.asList(input2),
 				mappedInputs.getJSONArray(input2ParentRdfType).toList().stream().map(i -> (String) i)
 						.collect(Collectors.toList())));
 	}
@@ -1587,7 +1587,7 @@ public class DerivedQuantitySparqlTest {
 		List<String> mappedInstances = devClient.retrieveMatchingInstances(derivationIRI, derivedAgentIRI2);
 		// the mappedInstances should be [entity1, entity2]
 		mappedInstances.removeAll(Arrays.asList(entity1, entity2));
-		Assert.assertTrue(mappedInstances.isEmpty());
+		Assertions.assertTrue(mappedInstances.isEmpty());
 	}
 
 	// below test case replaces the test case testGetDerivations()
@@ -1609,14 +1609,14 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "Derivation");
 			for (String dIRI : derivationIRIs) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 			}
 			assertTestGetAllDerivationsInKG(devClient, derivationIRIs, _entitiesList, _agentURLList, _inputsList);
 
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -1642,18 +1642,18 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 			for (int i = 0; i < derivationIRIs.size(); i++) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 				if (_forAsyncUpdateFlagList.get(i)) {
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 					String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 							ResourceFactory.createProperty(RDF.type.getURI()),
 							ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 				} else {
-					Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				}
 			}
@@ -1663,7 +1663,7 @@ public class DerivedQuantitySparqlTest {
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -1703,8 +1703,8 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
-			Assert.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
 		}
 
 		List<Derivation> derivations = devClient.getAllDerivationsInKG();
@@ -1716,30 +1716,30 @@ public class DerivedQuantitySparqlTest {
 				// check four things for each derivation: inputs, outputs, directedUpstreams,
 				// directedDownstreams
 				case derivedAgentURL0:
-					Assert.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(
+					Assertions.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL1), derivation.getDirectedDownstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(derivation.getAgentInputs().isEmpty());
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(
+					Assertions.assertTrue(derivation.getAgentInputs().isEmpty());
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL0), derivation.getDirectedUpstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL2), derivation.getDirectedDownstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(derivation.getAgentInputs().isEmpty());
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(
+					Assertions.assertTrue(derivation.getAgentInputs().isEmpty());
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL1), derivation.getDirectedUpstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					break;
 				default:
 					fail("Unexpected agentURL for derivation: " + derivation.getAgentURL());
@@ -1749,7 +1749,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	// below test case replaces the test case testGetDerivations()
@@ -1786,10 +1786,10 @@ public class DerivedQuantitySparqlTest {
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (String dIRI : derivationIRIs) {
 			if (dIRI.contentEquals(derivation1)) {
-				Assert.assertEquals(derivationNormalType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(derivationNormalType, testKG.getIndividual(dIRI).getRDFType());
 			} else {
-				Assert.assertEquals(derivationAsynType, testKG.getIndividual(dIRI).getRDFType());
-				Assert.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
+				Assertions.assertEquals(derivationAsynType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
 			}
 		}
 
@@ -1802,31 +1802,31 @@ public class DerivedQuantitySparqlTest {
 				// check four things for each derivation: inputs, outputs, directedUpstreams,
 				// directedDownstreams
 				case derivedAgentURL0:
-					Assert.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
-					Assert.assertTrue(equalLists(entities0, derivation.getEntitiesIri()));
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
+					Assertions.assertTrue(equalLists(entities0, derivation.getEntitiesIri()));
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					// also check for immediate downstream derivations as outputs are not empty
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL1),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL1),
 							derivation.getEntities().stream().map(en -> en.getInputOf())
 									.flatMap(Collection::stream).distinct().collect(Collectors.toList()).stream()
 									.map(d -> d.getAgentURL()).collect(Collectors.toList())));
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(
+					Assertions.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL2), derivation.getDirectedDownstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(derivation.getAgentInputs().isEmpty());
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(
+					Assertions.assertTrue(derivation.getAgentInputs().isEmpty());
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(
 							equalLists(Arrays.asList(derivedAgentURL1), derivation.getDirectedUpstreams().stream()
 									.map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					break;
 				default:
 					fail("Unexpected agentURL for derivation: " + derivation.getAgentURL());
@@ -1836,7 +1836,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	// below test case replaces the test case testGetDerivations()
@@ -1875,10 +1875,10 @@ public class DerivedQuantitySparqlTest {
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (String dIRI : derivationIRIs) {
 			if (dIRI.contentEquals(derivation1)) {
-				Assert.assertEquals(derivationNormalType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(derivationNormalType, testKG.getIndividual(dIRI).getRDFType());
 			} else {
-				Assert.assertEquals(derivationAsynType, testKG.getIndividual(dIRI).getRDFType());
-				Assert.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
+				Assertions.assertEquals(derivationAsynType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(StatusType.REQUESTED, devClient.getStatusType(dIRI));
 			}
 		}
 
@@ -1891,27 +1891,27 @@ public class DerivedQuantitySparqlTest {
 				// check four things for each derivation: inputs, outputs, directedUpstreams,
 				// directedDownstreams
 				case derivedAgentURL0:
-					Assert.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
-					Assert.assertTrue(equalLists(entities0, derivation.getEntitiesIri()));
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(equalLists(inputs0, derivation.getAgentInputs()));
+					Assertions.assertTrue(equalLists(entities0, derivation.getEntitiesIri()));
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					// also check for immediate downstream derivations as outputs are not empty
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2),
 							derivation.getEntities().stream().map(en -> en.getInputOf())
 									.flatMap(Collection::stream).distinct().collect(Collectors.toList()).stream()
 									.map(d -> d.getAgentURL()).collect(Collectors.toList())));
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
-					Assert.assertTrue(derivation.getEntities().isEmpty());
-					Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
-					Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+					Assertions.assertTrue(equalLists(entities0, derivation.getAgentInputs()));
+					Assertions.assertTrue(derivation.getEntities().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+					Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 					break;
 				default:
 					fail("Unexpected agentURL for derivation: " + derivation.getAgentURL());
@@ -1921,7 +1921,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -1943,7 +1943,7 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "Derivation");
 			for (String dIRI : derivationIRIs) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 			}
 
 			assertTestGetRootAndAllUpstreamDerivations_Fragmented(devClient, derivationIRIs,
@@ -1952,7 +1952,7 @@ public class DerivedQuantitySparqlTest {
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -1978,18 +1978,18 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 			for (int i = 0; i < derivationIRIs.size(); i++) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 				if (_forAsyncUpdateFlagList.get(i)) {
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 					String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 							ResourceFactory.createProperty(RDF.type.getURI()),
 							ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 				} else {
-					Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				}
 			}
@@ -2000,7 +2000,7 @@ public class DerivedQuantitySparqlTest {
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -2023,7 +2023,7 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "Derivation");
 			for (String dIRI : derivationIRIs) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 			}
 
 			assertTestGetRootAndAllUpstreamDerivations_Chain(devClient, derivationIRIs,
@@ -2032,7 +2032,7 @@ public class DerivedQuantitySparqlTest {
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -2058,18 +2058,18 @@ public class DerivedQuantitySparqlTest {
 			Resource derivationType = ResourceFactory
 					.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 			for (int i = 0; i < derivationIRIs.size(); i++) {
-				Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+				Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 				if (_forAsyncUpdateFlagList.get(i)) {
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 					String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-					Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+					Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 							ResourceFactory.createProperty(RDF.type.getURI()),
 							ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 				} else {
-					Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+					Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 						ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				}
 			}
@@ -2080,7 +2080,7 @@ public class DerivedQuantitySparqlTest {
 			devClient.dropAllDerivations();
 			devClient.dropAllTimestamps();
 			List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-			Assert.assertEquals(0, allDerivations.size());
+			Assertions.assertEquals(0, allDerivations.size());
 		}
 	}
 
@@ -2099,7 +2099,7 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "Derivation");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 		}
 
 		assertTestGetRootAndAllUpstreamDerivations_Tree1(devClient, derivationIRIs, derivationTypeList);
@@ -2107,7 +2107,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2127,18 +2127,18 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (int i = 0; i < derivationIRIs.size(); i++) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -2148,7 +2148,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2166,7 +2166,7 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "Derivation");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 		}
 
 		assertTestGetRootAndAllUpstreamDerivations_DAG1(devClient, derivationIRIs, derivationTypeList);
@@ -2174,7 +2174,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2194,18 +2194,18 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (int i = 0; i < derivationIRIs.size(); i++) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -2215,7 +2215,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2232,7 +2232,7 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "Derivation");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 		}
 
 		assertTestGetRootAndAllUpstreamDerivations_DAG2(devClient, derivationIRIs, derivationTypeList);
@@ -2240,7 +2240,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2260,18 +2260,18 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (int i = 0; i < derivationIRIs.size(); i++) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -2281,7 +2281,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2299,7 +2299,7 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "Derivation");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 		}
 
 		assertTestGetRootAndAllUpstreamDerivations_DAG3(devClient, derivationIRIs, derivationTypeList);
@@ -2307,7 +2307,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2327,18 +2327,18 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "DerivationAsyn");
 		for (int i = 0; i < derivationIRIs.size(); i++) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(derivationIRIs.get(i)).getRDFType());
 
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 		}
@@ -2348,7 +2348,7 @@ public class DerivedQuantitySparqlTest {
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2363,7 +2363,7 @@ public class DerivedQuantitySparqlTest {
 		Resource derivationType = ResourceFactory
 				.createResource(DerivationSparql.derivednamespace + "Derivation");
 		for (String dIRI : derivationIRIs) {
-			Assert.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
+			Assertions.assertEquals(derivationType, testKG.getIndividual(dIRI).getRDFType());
 		}
 
 		// check inputs/outputs
@@ -2376,11 +2376,11 @@ public class DerivedQuantitySparqlTest {
 				.get();
 		assertD0(d0);
 		// d0 should have two downstream derivations d2/d4 in DAG4
-		Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
+		Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
 				d0.getEntities().get(0).getInputOf().stream().map(d -> d.getAgentURL()).collect(Collectors.toList())));
 		// in DAG4, both d2/d4 should only have one downstream derivation: d5
 		d0.getEntities().get(0).getInputOf().stream().forEach(d -> {
-			Assert.assertEquals(Arrays.asList(derivedAgentURL5),
+			Assertions.assertEquals(Arrays.asList(derivedAgentURL5),
 					d.getEntities().stream().filter(e -> e.getInputOf() != null).map(e -> e.getInputOf())
 							.flatMap(Collection::stream).collect(Collectors.toList())
 							.stream().map(dd -> dd.getAgentURL()).distinct().collect(Collectors.toList()));
@@ -2390,19 +2390,19 @@ public class DerivedQuantitySparqlTest {
 				.get();
 		assertD5(d5);
 		// d5 should have two upstream derivations d2/d4 in DAG4
-		Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
+		Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
 				d5.getInputsWithBelongsTo().stream().map(d -> d.getAgentURL()).distinct()
 						.collect(Collectors.toList())));
 		// in DAG4, both d2/d4 should only have one upstream derivation: d0
 		d5.getInputsWithBelongsTo().stream().forEach(d -> {
-			Assert.assertEquals(Arrays.asList(derivedAgentURL0), d.getInputsWithBelongsTo().stream()
+			Assertions.assertEquals(Arrays.asList(derivedAgentURL0), d.getInputsWithBelongsTo().stream()
 					.map(ud -> ud.getAgentURL()).distinct().collect(Collectors.toList()));
 		});
 
 		devClient.dropAllDerivations();
 		devClient.dropAllTimestamps();
 		List<Derivation> allDerivations = devClient.getAllDerivationsInKG();
-		Assert.assertEquals(0, allDerivations.size());
+		Assertions.assertEquals(0, allDerivations.size());
 	}
 
 	@Test
@@ -2417,21 +2417,21 @@ public class DerivedQuantitySparqlTest {
 			List<Derivation> ds = devClient.getAllDerivationsInKG();
 			Derivation derivation = devClient.getDerivation(derivationIRIs.get(i));
 			// inputs
-			Assert.assertTrue(equalLists(inputsListDAG5.get(i), derivation.getAgentInputs()));
+			Assertions.assertTrue(equalLists(inputsListDAG5.get(i), derivation.getAgentInputs()));
 
 			// outputs
-			Assert.assertTrue(equalLists(entitiesListDAG5.get(i), derivation.getEntitiesIri()));
+			Assertions.assertTrue(equalLists(entitiesListDAG5.get(i), derivation.getEntitiesIri()));
 
 			// agent url
-			Assert.assertEquals(agentURLListDAG5.get(i), derivation.getAgentURL());
+			Assertions.assertEquals(agentURLListDAG5.get(i), derivation.getAgentURL());
 
 			// no upstream derivation cached
-			Assert.assertTrue(derivation.getInputsWithBelongsTo().isEmpty());
-			Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+			Assertions.assertTrue(derivation.getInputsWithBelongsTo().isEmpty());
+			Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
 
 			// no downstream derivation cached
-			Assert.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
-			Assert.assertTrue(derivation.getDirectedDownstreams().isEmpty());
+			Assertions.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
+			Assertions.assertTrue(derivation.getDirectedDownstreams().isEmpty());
 		}
 	}
 
@@ -2442,8 +2442,8 @@ public class DerivedQuantitySparqlTest {
 		String d1 = devClient.createDerivationAsync(new ArrayList<>(), derivedAgentIRI, Arrays.asList(d0), true);
 		String d2 = devClient.createDerivationAsync(new ArrayList<>(), derivedAgentIRI2, Arrays.asList(d0), true);
 		Map<String, String> map = devClient.getDownstreamDerivationForNewInfo(d0);
-		Assert.assertTrue(map.get(d1).contentEquals(derivedAgentIRI));
-		Assert.assertTrue(map.get(d2).contentEquals(derivedAgentIRI2));
+		Assertions.assertTrue(map.get(d1).contentEquals(derivedAgentIRI));
+		Assertions.assertTrue(map.get(d2).contentEquals(derivedAgentIRI2));
 	}
 
 	@Test
@@ -2473,51 +2473,51 @@ public class DerivedQuantitySparqlTest {
 			switch (agentURL) {
 				// check that the Iri of the upstream derivations need update are correct
 				case derivedAgentURL0:
-					Assert.assertTrue(upstreamDerivationsNeedUpdate.isEmpty());
+					Assertions.assertTrue(upstreamDerivationsNeedUpdate.isEmpty());
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONASYN));
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATION));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(0)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(0)),
 							upstreamDerivationsNeedUpdate
 									.get(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES)));
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONASYN));
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATION));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(0)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(0)),
 							upstreamDerivationsNeedUpdate
 									.get(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES)));
 					break;
 				case derivedAgentURL3:
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONASYN));
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate
 									.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(1), ds.get(2)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(1), ds.get(2)),
 							upstreamDerivationsNeedUpdate.get(DerivationSparql.ONTODERIVATION_DERIVATION)));
 					break;
 				case derivedAgentURL4:
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONASYN));
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate.containsKey(DerivationSparql.ONTODERIVATION_DERIVATION));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(0)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(0)),
 							upstreamDerivationsNeedUpdate
 									.get(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES)));
 					break;
 				case derivedAgentURL5:
-					Assert.assertTrue(
+					Assertions.assertTrue(
 							!upstreamDerivationsNeedUpdate
 									.containsKey(DerivationSparql.ONTODERIVATION_DERIVATIONWITHTIMESERIES));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(2)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(2)),
 							upstreamDerivationsNeedUpdate.get(DerivationSparql.ONTODERIVATION_DERIVATION)));
-					Assert.assertTrue(equalLists(Arrays.asList(ds.get(4)),
+					Assertions.assertTrue(equalLists(Arrays.asList(ds.get(4)),
 							upstreamDerivationsNeedUpdate.get(DerivationSparql.ONTODERIVATION_DERIVATIONASYN)));
 					break;
 				default:
@@ -2541,53 +2541,53 @@ public class DerivedQuantitySparqlTest {
 			String derivationIRI = derivationIRIs.get(i);
 			String agentURL = agentURLListDAG5.get(i);
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 			List<Derivation> allImmediateUpstreamDerivations = devClient
 					.getAllImmediateUpstreamDerivations(derivationIRI);
 			// check NONE of these derivations connect to any other derivations
-			Assert.assertTrue(
+			Assertions.assertTrue(
 					allImmediateUpstreamDerivations.stream().allMatch(d -> d.getInputsWithBelongsTo().isEmpty()));
-			Assert.assertTrue(
+			Assertions.assertTrue(
 					allImmediateUpstreamDerivations.stream().allMatch(d -> d.getDirectedUpstreams().isEmpty()));
-			Assert.assertTrue(
+			Assertions.assertTrue(
 					allImmediateUpstreamDerivations.stream().allMatch(d -> d.getDirectedDownstreams().isEmpty()));
-			Assert.assertTrue(
+			Assertions.assertTrue(
 					allImmediateUpstreamDerivations.stream()
 							.allMatch(d -> d.getEntities().stream().allMatch(en -> !en.isInputToDerivation())));
 			switch (agentURL) {
 				// check that the Iri of the upstream derivations are correct
 				case derivedAgentURL0:
-					Assert.assertTrue(allImmediateUpstreamDerivations.isEmpty());
+					Assertions.assertTrue(allImmediateUpstreamDerivations.isEmpty());
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
 							.stream().map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
 							.stream().map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL3:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2),
 							allImmediateUpstreamDerivations
 									.stream().map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL4:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL0), allImmediateUpstreamDerivations
 							.stream().map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
 				case derivedAgentURL5:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL2, derivedAgentURL4),
 							allImmediateUpstreamDerivations
 									.stream().map(d -> d.getAgentURL()).distinct().collect(Collectors.toList())));
 					break;
@@ -2615,54 +2615,54 @@ public class DerivedQuantitySparqlTest {
 			String derivationIRI = derivationIRIs.get(i);
 			String agentURL = agentURLListDAG5.get(i);
 			if (_forAsyncUpdateFlagList.get(i)) {
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 				String statusIRI = testKG.getProperty(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")).getObject().toString();
-				Assert.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
+				Assertions.assertTrue(testKG.contains(ResourceFactory.createResource(statusIRI),
 						ResourceFactory.createProperty(RDF.type.getURI()),
 						ResourceFactory.createResource(DerivationSparql.derivednamespace + "Requested")));
 			} else {
-				Assert.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
+				Assertions.assertTrue(!testKG.contains(ResourceFactory.createResource(derivationIRIs.get(i)),
 					ResourceFactory.createProperty(DerivationSparql.derivednamespace + "hasStatus")));
 			}
 			Derivation derivation = devClient.getDerivationWithImmediateDownstream(derivationIRI);
 			// check the constructed derivation from queried results does NOT have
 			// downstream derivations other than the immediate ones; also it does NOT have
 			// the upstream derivations
-			Assert.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).stream()
+			Assertions.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).stream()
 					.allMatch(d -> d.getEntities().stream().allMatch(e -> !e.isInputToDerivation())));
-			Assert.assertTrue(derivation.getDirectedDownstreams().stream().allMatch(d -> d.getEntitiesIri().isEmpty()));
-			Assert.assertTrue(derivation.getInputsWithBelongsTo().isEmpty());
-			Assert.assertTrue(derivation.getDirectedUpstreams().isEmpty());
+			Assertions.assertTrue(derivation.getDirectedDownstreams().stream().allMatch(d -> d.getEntitiesIri().isEmpty()));
+			Assertions.assertTrue(derivation.getInputsWithBelongsTo().isEmpty());
+			Assertions.assertTrue(derivation.getDirectedUpstreams().isEmpty());
 			switch (agentURL) {
 				// check that the Iri of the downstream derivations are correct
 				case derivedAgentURL0:
 					d0 = derivationIRI;
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2, derivedAgentURL4),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2, derivedAgentURL4),
 							collectDistinctImmediateDownstreamDerivations(derivation).stream().map(d -> d.getAgentURL())
 									.collect(Collectors.toList())));
 					break;
 				case derivedAgentURL1:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL3),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL3),
 							collectDistinctImmediateDownstreamDerivations(derivation).stream().map(d -> d.getAgentURL())
 									.collect(Collectors.toList())));
 					break;
 				case derivedAgentURL2:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL3, derivedAgentURL5),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL3, derivedAgentURL5),
 							collectDistinctImmediateDownstreamDerivations(derivation).stream().map(d -> d.getAgentURL())
 									.collect(Collectors.toList())));
 					break;
 				case derivedAgentURL3:
-					Assert.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
+					Assertions.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
 					break;
 				case derivedAgentURL4:
-					Assert.assertTrue(equalLists(Arrays.asList(derivedAgentURL5),
+					Assertions.assertTrue(equalLists(Arrays.asList(derivedAgentURL5),
 							collectDistinctImmediateDownstreamDerivations(derivation).stream().map(d -> d.getAgentURL())
 									.collect(Collectors.toList())));
 					break;
 				case derivedAgentURL5:
-					Assert.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
+					Assertions.assertTrue(collectDistinctImmediateDownstreamDerivations(derivation).isEmpty());
 					break;
 				default:
 					fail("Unexpected agentURL for derivation: " + agentURL);
@@ -2681,7 +2681,7 @@ public class DerivedQuantitySparqlTest {
 		Derivation d_0 = devClient.getDerivationWithImmediateDownstream(d0);
 		List<Derivation> ds = collectDistinctImmediateDownstreamDerivations(d_0);
 		ds.addAll(d_0.getDirectedDownstreams());
-		Assert.assertTrue(
+		Assertions.assertTrue(
 				equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2, derivedAgentURL4, agentURL_random),
 						ds.stream().map(d -> d.getAgentURL())
 								.collect(Collectors.toList())));
@@ -2715,15 +2715,15 @@ public class DerivedQuantitySparqlTest {
 		d_0 = devClient.getDerivationWithImmediateDownstream(d0);
 		ds = collectDistinctImmediateDownstreamDerivations(d_0);
 		ds.addAll(d_0.getDirectedDownstreams());
-		Assert.assertTrue(
+		Assertions.assertTrue(
 				equalLists(Arrays.asList(derivedAgentURL1, derivedAgentURL2, derivedAgentURL4, agentURL_random),
 						ds.stream().map(d -> d.getAgentURL())
 								.collect(Collectors.toList())));
-		Assert.assertTrue(d_0.getStatus().getStatusIri().equals(statusIRI));
-		Assert.assertTrue(d_0.getStatus().getStatusRdfType().equals(DerivationSparql.derivednamespace + "Finished"));
-		Assert.assertTrue(equalLists(Arrays.asList(new_iri_1, new_iri_2, new_iri_3),
+		Assertions.assertTrue(d_0.getStatus().getStatusIri().equals(statusIRI));
+		Assertions.assertTrue(d_0.getStatus().getStatusRdfType().equals(DerivationSparql.derivednamespace + "Finished"));
+		Assertions.assertTrue(equalLists(Arrays.asList(new_iri_1, new_iri_2, new_iri_3),
 				d_0.getStatus().getNewDerivedIRI().stream().map(e -> e.getIri()).collect(Collectors.toList())));
-		Assert.assertTrue(equalLists(
+		Assertions.assertTrue(equalLists(
 				Arrays.asList(new_iri_1 + "/rdftype", new_iri_2 + "/rdftype", new_iri_3 + "/rdftype"),
 				d_0.getStatus().getNewDerivedIRI().stream().map(e -> e.getRdfType()).collect(Collectors.toList())));
 	}
@@ -2758,15 +2758,15 @@ public class DerivedQuantitySparqlTest {
 
 			List<Entity> inputs = derivation.getInputs();
 			for (Entity input : inputs) {
-				Assert.assertTrue(_inputsList.get(i).contains(input.getIri()));
+				Assertions.assertTrue(_inputsList.get(i).contains(input.getIri()));
 			}
 
 			List<Entity> entities = derivation.getEntities();
 			for (Entity entity : entities) {
-				Assert.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
+				Assertions.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
 			}
 
-			Assert.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
+			Assertions.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
 		}
 	}
 
@@ -2787,26 +2787,26 @@ public class DerivedQuantitySparqlTest {
 			// the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRI, Arrays.asList(dType)).size());
 				}
 			}
 
-			Assert.assertEquals(1, derivations.size());
+			Assertions.assertEquals(1, derivations.size());
 			Derivation derivation = derivations.stream().filter(d -> d.getIri().contentEquals(derivationIRI))
 					.findFirst().get();
 
 			List<Entity> inputs = derivation.getInputs();
 			for (Entity input : inputs) {
-				Assert.assertTrue(_inputsList.get(i).contains(input.getIri()));
+				Assertions.assertTrue(_inputsList.get(i).contains(input.getIri()));
 			}
 
 			List<Entity> entities = derivation.getEntities();
 			for (Entity entity : entities) {
-				Assert.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
+				Assertions.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
 			}
 
-			Assert.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
+			Assertions.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
 
 			assertNoImmediateUpstreamDerivation(derivation);
 			assertNoImmediateDownstreamDerivation(derivation);
@@ -2830,7 +2830,7 @@ public class DerivedQuantitySparqlTest {
 			// the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRIs.get(devIdx),
 									Arrays.asList(dType))
 							.size());
@@ -2844,15 +2844,15 @@ public class DerivedQuantitySparqlTest {
 
 				List<Entity> inputs = derivation.getInputs();
 				for (Entity input : inputs) {
-					Assert.assertTrue(_inputsList.get(i).contains(input.getIri()));
+					Assertions.assertTrue(_inputsList.get(i).contains(input.getIri()));
 				}
 
 				List<Entity> entities = derivation.getEntities();
 				for (Entity entity : entities) {
-					Assert.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
+					Assertions.assertTrue(_entitiesList.get(i).contains(entity.getIri()));
 				}
 
-				Assert.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
+				Assertions.assertEquals(_agentURLList.get(i), derivation.getAgentURL());
 			}
 		}
 	}
@@ -2874,7 +2874,7 @@ public class DerivedQuantitySparqlTest {
 			// the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRI, Arrays.asList(dType)).size());
 				}
 			}
@@ -2883,7 +2883,7 @@ public class DerivedQuantitySparqlTest {
 				// when the retrieved derivation is d1, i.e. the root derivation was d1, there
 				// should be only one instance of Derivation (d1), and NO information about
 				// upstream nor downstream should be cached
-				Assert.assertEquals(1, derivations.size());
+				Assertions.assertEquals(1, derivations.size());
 				assertD1(derivation);
 				// Make sure no information about upstream or downstream are cached
 				assertNoImmediateUpstreamDerivation(derivation);
@@ -2891,7 +2891,7 @@ public class DerivedQuantitySparqlTest {
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL2)) {
 				// this is the same situation, only d2 but NO information about upstream nor
 				// downstream should be cached
-				Assert.assertEquals(1, derivations.size());
+				Assertions.assertEquals(1, derivations.size());
 				assertD2(derivation);
 				// Make sure no information about upstream or downstream are cached
 				assertNoImmediateUpstreamDerivation(derivation);
@@ -2899,11 +2899,11 @@ public class DerivedQuantitySparqlTest {
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL3)) {
 				// when d3 is root, both d1 and d2 should be cached, also they should be
 				// connecting to each other
-				Assert.assertEquals(3, derivations.size());
+				Assertions.assertEquals(3, derivations.size());
 				assertD3(derivation);
 				// there should be 2 upstream derivations exist for d3
 				List<Derivation> upstreamDerivations = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(2, upstreamDerivations.size());
+				Assertions.assertEquals(2, upstreamDerivations.size());
 				for (Derivation upD : upstreamDerivations) {
 					if (upD.getAgentURL().contentEquals(derivedAgentURL1)) {
 						// when d3 is root, d1 should be cached with NO upstream derivation, but d3 as
@@ -2947,7 +2947,7 @@ public class DerivedQuantitySparqlTest {
 			// the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRI, Arrays.asList(dType)).size());
 				}
 			}
@@ -2956,7 +2956,7 @@ public class DerivedQuantitySparqlTest {
 				// when the retrieved derivation is d0, i.e. the root derivation was d0, there
 				// should be only one instance of Derivation (d0), and NO information about
 				// upstream nor downstream should be cached
-				Assert.assertEquals(1, derivations.size());
+				Assertions.assertEquals(1, derivations.size());
 				assertD0(derivation);
 				// Make sure no information about upstream or downstream are cached
 				assertNoImmediateUpstreamDerivation(derivation);
@@ -2964,27 +2964,27 @@ public class DerivedQuantitySparqlTest {
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL1)) {
 				// when d1 is root, both d1 and d0 should be cached and connected to each other,
 				// but NO information about d2 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD1(derivation);
 				// Make sure no information about downstream are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d1
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD1(_upD.get(0));
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL2)) {
 				// when d2 is root, both d2 and d0 should be cached and connected to each other,
 				// but NO information about d1 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD2(derivation);
 				// Make sure no information about downstream are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d2
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD2(_upD.get(0));
 			} else {
@@ -3011,7 +3011,7 @@ public class DerivedQuantitySparqlTest {
 			// the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRI, Arrays.asList(dType)).size());
 				}
 			}
@@ -3020,7 +3020,7 @@ public class DerivedQuantitySparqlTest {
 				// when the retrieved derivation is d0, i.e. the root derivation was d0, there
 				// should be only one instance of Derivation (d0), and NO information about
 				// upstream nor downstream should be cached
-				Assert.assertEquals(1, derivations.size());
+				Assertions.assertEquals(1, derivations.size());
 				assertD0(derivation);
 				// Make sure no information about upstream or downstream are cached
 				assertNoImmediateUpstreamDerivation(derivation);
@@ -3028,36 +3028,36 @@ public class DerivedQuantitySparqlTest {
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL1)) {
 				// when d1 is root, both d1 and d0 should be cached and connected to each other,
 				// but NO information about d2 nor d3 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD1(derivation);
 				// Make sure no information about downstream d3 are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d1
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD1(_upD.get(0));
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL2)) {
 				// when d2 is root, both d2 and d0 should be cached and connected to each other,
 				// but NO information about d1 nor d3 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD2(derivation);
 				// Make sure no information about downstream d3 are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d2
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD2(_upD.get(0));
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL3)) {
 				// when d3 is root, all four derivations should be cached
-				Assert.assertEquals(4, derivations.size());
+				Assertions.assertEquals(4, derivations.size());
 				assertD3(derivation);
 				// there should be 2 immediate upstream derivations exist for d3
 				List<Derivation> upstreamDerivations = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(2, upstreamDerivations.size());
+				Assertions.assertEquals(2, upstreamDerivations.size());
 				for (Derivation upD : upstreamDerivations) {
 					if (upD.getAgentURL().contentEquals(derivedAgentURL1)) {
 						// when d3 is root in DAG, d1 should be cached with d0 as its upstream
@@ -3069,7 +3069,7 @@ public class DerivedQuantitySparqlTest {
 						// Make sure only upstream derivation is d0, and d0 is connected to d1 and d2
 						assertHasOnlyImmediateUpstreamD0(upD);
 						List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(upD);
-						Assert.assertEquals(1, _upD.size());
+						Assertions.assertEquals(1, _upD.size());
 						assertD0(_upD.get(0));
 						assertHasFullDownstreamD1D2D3(_upD.get(0));
 					} else if (upD.getAgentURL().contentEquals(derivedAgentURL2)) {
@@ -3081,7 +3081,7 @@ public class DerivedQuantitySparqlTest {
 						// Make sure only upstream derivation is d0, and d0 is connected to d2
 						assertHasOnlyImmediateUpstreamD0(upD);
 						List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(upD);
-						Assert.assertEquals(1, _upD.size());
+						Assertions.assertEquals(1, _upD.size());
 						assertD0(_upD.get(0));
 						assertHasFullDownstreamD1D2D3(_upD.get(0));
 					} else {
@@ -3112,7 +3112,7 @@ public class DerivedQuantitySparqlTest {
 			// outside of the (target)derivationTypeList will be created in the test case
 			for (String dType : DerivationSparql.derivationTypes) {
 				if (!derivationTypeList.contains(dType)) {
-					Assert.assertEquals(0, devClient
+					Assertions.assertEquals(0, devClient
 							.getRootAndAllTargetUpstreamDerivations(derivationIRI, Arrays.asList(dType)).size());
 				}
 			}
@@ -3121,7 +3121,7 @@ public class DerivedQuantitySparqlTest {
 				// when the retrieved derivation is d0, i.e. the root derivation was d0, there
 				// should be only one instance of Derivation (d0), and NO information about
 				// upstream nor downstream should be cached
-				Assert.assertEquals(1, derivations.size());
+				Assertions.assertEquals(1, derivations.size());
 				assertD0(derivation);
 				// Make sure no information about upstream or downstream are cached
 				assertNoImmediateUpstreamDerivation(derivation);
@@ -3129,27 +3129,27 @@ public class DerivedQuantitySparqlTest {
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL2)) {
 				// when d2 is root, both d2 and d0 should be cached and connected to each other,
 				// but NO information about d4 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD2(derivation);
 				// Make sure no information about downstream are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d2
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD2(_upD.get(0));
 			} else if (derivation.getAgentURL().contentEquals(derivedAgentURL4)) {
 				// when d4 is root, both d4 and d0 should be cached and connected to each other,
 				// but NO information about d2 should be cached
-				Assert.assertEquals(2, derivations.size());
+				Assertions.assertEquals(2, derivations.size());
 				assertD4(derivation);
 				// Make sure no information about downstream are cached
 				assertNoImmediateDownstreamDerivation(derivation);
 				// Make sure only upstream derivation is d0, and d0 is connected to d2
 				assertHasOnlyImmediateUpstreamD0(derivation);
 				List<Derivation> _upD = collectDistinctImmediateUpstreamDerivations(derivation);
-				Assert.assertEquals(1, _upD.size());
+				Assertions.assertEquals(1, _upD.size());
 				assertD0(_upD.get(0));
 				assertHasOnlyImmediateDownstreamD4(_upD.get(0));
 			} else {
@@ -3159,54 +3159,54 @@ public class DerivedQuantitySparqlTest {
 	}
 
 	public void assertD0(Derivation d0) {
-		Assert.assertEquals(derivedAgentURL0, d0.getAgentURL());
-		Assert.assertTrue(equalLists(inputs0, d0.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities0, d0.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL0, d0.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs0, d0.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities0, d0.getEntitiesIri()));
 	}
 
 	public void assertD1(Derivation d1) {
-		Assert.assertEquals(derivedAgentURL1, d1.getAgentURL());
-		Assert.assertTrue(equalLists(inputs1, d1.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities1, d1.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL1, d1.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs1, d1.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities1, d1.getEntitiesIri()));
 	}
 
 	public void assertD2(Derivation d2) {
-		Assert.assertEquals(derivedAgentURL2, d2.getAgentURL());
-		Assert.assertTrue(equalLists(inputs2, d2.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities2, d2.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL2, d2.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs2, d2.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities2, d2.getEntitiesIri()));
 	}
 
 	public void assertD3(Derivation d3) {
-		Assert.assertEquals(derivedAgentURL3, d3.getAgentURL());
-		Assert.assertTrue(equalLists(inputs3, d3.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities3, d3.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL3, d3.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs3, d3.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities3, d3.getEntitiesIri()));
 	}
 
 	public void assertD4(Derivation d4) {
-		Assert.assertEquals(derivedAgentURL4, d4.getAgentURL());
-		Assert.assertTrue(equalLists(inputs4, d4.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities4, d4.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL4, d4.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs4, d4.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities4, d4.getEntitiesIri()));
 	}
 
 	public void assertD5(Derivation d5) {
-		Assert.assertEquals(derivedAgentURL5, d5.getAgentURL());
-		Assert.assertTrue(equalLists(inputs5, d5.getAgentInputs()));
-		Assert.assertTrue(equalLists(entities5, d5.getEntitiesIri()));
+		Assertions.assertEquals(derivedAgentURL5, d5.getAgentURL());
+		Assertions.assertTrue(equalLists(inputs5, d5.getAgentInputs()));
+		Assertions.assertTrue(equalLists(entities5, d5.getEntitiesIri()));
 	}
 
 	public void assertNoImmediateUpstreamDerivation(Derivation d) {
 		boolean noUpstreamDerivation = d.getInputs().stream().allMatch(in -> Objects.isNull(in.getBelongsTo()));
-		Assert.assertTrue(noUpstreamDerivation);
+		Assertions.assertTrue(noUpstreamDerivation);
 	}
 
 	public void assertNoImmediateDownstreamDerivation(Derivation d) {
 		boolean noDownstreamDerivation = d.getEntities().stream().allMatch(en -> Objects.isNull((en.getInputOf())));
-		Assert.assertTrue(noDownstreamDerivation);
+		Assertions.assertTrue(noDownstreamDerivation);
 	}
 
 	public void assertHasOnlyImmediateDownstreamD3(Derivation d) {
 		List<Derivation> derivations = collectDistinctImmediateDownstreamDerivations(d);
-		Assert.assertEquals(1, derivations.size());
+		Assertions.assertEquals(1, derivations.size());
 		Derivation d3 = derivations.get(0);
 		assertD3(d3);
 		assertNoImmediateDownstreamDerivation(d3);
@@ -3214,7 +3214,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasOnlyImmediateUpstreamD0(Derivation d) {
 		List<Derivation> derivations = collectDistinctImmediateUpstreamDerivations(d);
-		Assert.assertEquals(1, derivations.size());
+		Assertions.assertEquals(1, derivations.size());
 		Derivation d0 = derivations.get(0);
 		assertD0(d0);
 		assertNoImmediateUpstreamDerivation(d0);
@@ -3222,7 +3222,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasOnlyImmediateDownstreamD1(Derivation d) {
 		List<Derivation> derivations = collectDistinctImmediateDownstreamDerivations(d);
-		Assert.assertEquals(1, derivations.size());
+		Assertions.assertEquals(1, derivations.size());
 		Derivation d1 = derivations.get(0);
 		assertD1(d1);
 		assertNoImmediateDownstreamDerivation(d1);
@@ -3230,7 +3230,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasOnlyImmediateDownstreamD2(Derivation d) {
 		List<Derivation> derivations = collectDistinctImmediateDownstreamDerivations(d);
-		Assert.assertEquals(1, derivations.size());
+		Assertions.assertEquals(1, derivations.size());
 		Derivation d2 = derivations.get(0);
 		assertD2(d2);
 		assertNoImmediateDownstreamDerivation(d2);
@@ -3238,7 +3238,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasOnlyImmediateDownstreamD4(Derivation d) {
 		List<Derivation> derivations = collectDistinctImmediateDownstreamDerivations(d);
-		Assert.assertEquals(1, derivations.size());
+		Assertions.assertEquals(1, derivations.size());
 		Derivation d4 = derivations.get(0);
 		assertD4(d4);
 		assertNoImmediateDownstreamDerivation(d4);
@@ -3246,7 +3246,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasFullUpstreamD0D1D2(Derivation d3) {
 		List<Derivation> derivations = collectDistinctImmediateUpstreamDerivations(d3);
-		Assert.assertEquals(2, derivations.size());
+		Assertions.assertEquals(2, derivations.size());
 		for (Derivation d : derivations) {
 			if (d.getAgentURL().contentEquals(derivedAgentURL1)) {
 				assertD1(d);
@@ -3263,7 +3263,7 @@ public class DerivedQuantitySparqlTest {
 
 	public void assertHasFullDownstreamD1D2D3(Derivation d0) {
 		List<Derivation> derivations = collectDistinctImmediateDownstreamDerivations(d0);
-		Assert.assertEquals(2, derivations.size());
+		Assertions.assertEquals(2, derivations.size());
 		for (Derivation d : derivations) {
 			if (d.getAgentURL().contentEquals(derivedAgentURL1)) {
 				// d should have inputs/ouputs/agentURL about d1
@@ -3274,7 +3274,7 @@ public class DerivedQuantitySparqlTest {
 				assertHasOnlyImmediateDownstreamD3(d);
 				// its downstream d3 should be connected to both d1 and d2
 				List<Derivation> _d3 = collectDistinctImmediateDownstreamDerivations(d);
-				Assert.assertEquals(1, _d3.size());
+				Assertions.assertEquals(1, _d3.size());
 				Derivation d3 = _d3.get(0);
 				assertHasFullUpstreamD0D1D2(d3);
 			} else if (d.getAgentURL().contentEquals(derivedAgentURL2)) {
@@ -3286,7 +3286,7 @@ public class DerivedQuantitySparqlTest {
 				assertHasOnlyImmediateDownstreamD3(d);
 				// its downstream d3 should be connected to both d1 and d2
 				List<Derivation> _d3 = collectDistinctImmediateDownstreamDerivations(d);
-				Assert.assertEquals(1, _d3.size());
+				Assertions.assertEquals(1, _d3.size());
 				Derivation d3 = _d3.get(0);
 				assertHasFullUpstreamD0D1D2(d3);
 			} else {

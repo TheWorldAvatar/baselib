@@ -8,9 +8,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 
@@ -30,7 +30,7 @@ public class TimeSeriesClientFactoryTest {
     static Instant timestamp;
     static double insertedValue = 10.0;
 
-    @BeforeClass
+    @BeforeAll
     public static void initialiseSparqlClient() throws SQLException {
         // Start the container manually
         blazegraph.start();
@@ -75,13 +75,13 @@ public class TimeSeriesClientFactoryTest {
             TimeSeries<?> queriedTimeSeries = newTimeSeriesClient.getTimeSeries(dataIriList, conn);
 
             // queried Instant value is in different precision
-            Assert.assertEquals(timestamp.getEpochSecond(),
+            Assertions.assertEquals(timestamp.getEpochSecond(),
                     ((Instant) queriedTimeSeries.getTimes().get(0)).getEpochSecond());
 
-            Assert.assertEquals((Double) insertedValue,
+            Assertions.assertEquals((Double) insertedValue,
                     (Double) queriedTimeSeries.getValuesAsDouble(dataIri).get(0));
 
-            Assert.assertEquals(postgres.getJdbcUrl(), newTimeSeriesClient.getRdbUrl());
+            Assertions.assertEquals(postgres.getJdbcUrl(), newTimeSeriesClient.getRdbUrl());
         }
     }
 
@@ -99,13 +99,13 @@ public class TimeSeriesClientFactoryTest {
             TimeSeries<?> queriedTimeSeries = newTimeSeriesClient.getTimeSeries(dataIriList, conn);
 
             // queried Instant value is in different precision
-            Assert.assertEquals(timestamp.getEpochSecond(),
+            Assertions.assertEquals(timestamp.getEpochSecond(),
                     ((Instant) queriedTimeSeries.getTimes().get(0)).getEpochSecond());
 
-            Assert.assertEquals((Double) insertedValue,
+            Assertions.assertEquals((Double) insertedValue,
                     (Double) queriedTimeSeries.getValuesAsDouble(dataIri).get(0));
 
-            Assert.assertEquals(postgres.getJdbcUrl(), newTimeSeriesClient.getRdbUrl());
+            Assertions.assertEquals(postgres.getJdbcUrl(), newTimeSeriesClient.getRdbUrl());
         }
     }
 }

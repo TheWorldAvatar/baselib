@@ -1,9 +1,7 @@
 package uk.ac.cam.cares.jps.base.timeseries;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.time.Instant;
 
@@ -12,9 +10,6 @@ import java.time.Instant;
  */
 
 public class TimeSeriesRDBClientTest {
-    @ClassRule
-    public static TemporaryFolder folder = new TemporaryFolder();
-
     @Test
     public void testConstructor()
             throws NoSuchFieldException, SecurityException, IllegalArgumentException, IllegalAccessException {
@@ -25,24 +20,24 @@ public class TimeSeriesRDBClientTest {
         timeColumnField.setAccessible(true);
         org.jooq.Field<String> timeColumn = (org.jooq.Field<String>) timeColumnField.get(client);
         // Test for correct field name and class
-        Assert.assertEquals("time", timeColumn.getName());
-        Assert.assertEquals(Instant.class, timeColumn.getType());
+        Assertions.assertEquals("time", timeColumn.getName());
+        Assertions.assertEquals(Instant.class, timeColumn.getType());
     }
 
     @Test
     public void testSetAndGetRdbURL() {
         TimeSeriesRDBClient<Instant> client = new TimeSeriesRDBClient<>(Instant.class);
-        Assert.assertNull(client.getRdbURL());
+        Assertions.assertNull(client.getRdbURL());
         client.setRdbURL("http://localhost:5342");
-        Assert.assertEquals("http://localhost:5342", client.getRdbURL());
+        Assertions.assertEquals("http://localhost:5342", client.getRdbURL());
     }
 
     @Test
     public void testSetAndGetRdbUser() {
         TimeSeriesRDBClient<Instant> client = new TimeSeriesRDBClient<>(Instant.class);
-        Assert.assertNull(client.getRdbUser());
+        Assertions.assertNull(client.getRdbUser());
         client.setRdbUser("postgres");
-        Assert.assertEquals("postgres", client.getRdbUser());
+        Assertions.assertEquals("postgres", client.getRdbUser());
     }
 
     @Test
@@ -54,9 +49,9 @@ public class TimeSeriesRDBClientTest {
         Field rdbPasswordField = client.getClass().getDeclaredField("rdbPassword");
         rdbPasswordField.setAccessible(true);
 
-        Assert.assertNull(rdbPasswordField.get(client));
+        Assertions.assertNull(rdbPasswordField.get(client));
         client.setRdbPassword("password");
-        Assert.assertNotNull(rdbPasswordField.get(client));
-        Assert.assertEquals("password", rdbPasswordField.get(client));
+        Assertions.assertNotNull(rdbPasswordField.get(client));
+        Assertions.assertEquals("password", rdbPasswordField.get(client));
     }
 }
